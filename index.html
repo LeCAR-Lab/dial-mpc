@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="description"
+        content="Full-Order Sampling-Based MPC for Torque-Level Locomotion Control via Diffusion-Style Annealing">
+    <meta name="keywords" content="Diffusion, MPC, Locomotion Control">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>
+        Full-Order Sampling-Based MPC for Torque-Level Locomotion Control via Diffusion-Style Annealing
+    </title>
+
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+
+        gtag('js', new Date());
+
+        gtag('config', 'G-GF0QZBTPS3');
+    </script>
+
+    <link href="https://fonts.googleapis.com/css?family=Google+Sans|Noto+Sans|Castoro" rel="stylesheet">
+
+    <link rel="stylesheet" href="./static/css/bulma.min.css">
+    <link rel="stylesheet" href="./static/css/bulma-carousel.min.css">
+    <link rel="stylesheet" href="./static/css/bulma-slider.min.css">
+    <link rel="stylesheet" href="./static/css/fontawesome.all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+    <link rel="stylesheet" href="./static/css/index.css">
+    <link rel="icon" href="./static/images/favicon.svg">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script defer src="./static/js/fontawesome.all.min.js"></script>
+    <script src="./static/js/bulma-carousel.min.js"></script>
+    <script src="./static/js/bulma-slider.min.js"></script>
+    <script src="./static/js/index.js"></script>
+</head>
+
+<body>
+
+    <section class="hero">
+        <div class="hero-body">
+            <div class="container is-max-desktop">
+                <div class="columns is-centered">
+                    <div class="column has-text-centered">
+                        <h1 class="title is-1 publication-title">Full-Order Sampling-Based MPC for Torque-Level Locomotion Control via Diffusion-Style Annealing</h1>
+                        <div class="is-size-5 publication-authors">
+                            <span class="author-block">
+                                <a href="https://haoruxue.github.io">Haoru Xue</a><sup>*</sup>,
+                            </span>
+                            <span class="author-block">
+                                <a href="https://panchaoyi.com">Chaoyi Pan</a><sup>*</sup>,
+                            </span>
+                            <span class="author-block">
+                                <a href="https://iscoyizj.github.io">Zeji Yi</a>,
+                            </span>
+                            <span class="author-block">
+                                <a href="https://www.guannanqu.com">Guannan Qu</a>,
+                            </span>
+                            <span class="author-block">
+                                <a href="http://www.gshi.me/">Guanya Shi</a>
+                            </span>
+                        </div>
+
+                        <div class="is-size-5 publication-authors">
+                            <span class="author-block"><sup>*</sup> Equal contribution</span>
+                        </div>
+
+                        <div class="is-size-5 publication-authors">
+                            <span class="author-block">Carnegie Mellon University</span>
+                        </div>
+
+                        <div class="column has-text-centered">
+                            <div class="publication-links">
+                                <!-- PDF Link. -->
+                                <span class="link-block">
+                                    <a href="" class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </span>
+                                        <span>Paper</span>
+                                    </a>
+                                </span>
+                                <span class="link-block">
+                                    <a href="" class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon">
+                                            <i class="ai ai-arxiv"></i>
+                                        </span>
+                                        <span>arXiv</span>
+                                    </a>
+                                </span>
+                                <!-- Video Link. -->
+                                <!-- <span class="link-block">
+                                    <a href="https://www.youtube.com/watch?v=MrKrnHhk8IA"
+                                        class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon">
+                                            <i class="fab fa-youtube"></i>
+                                        </span>
+                                        <span>Video</span>
+                                    </a>
+                                </span> -->
+                                <!-- Code Link. -->
+                                <span class="link-block">
+                                    <a href="https://github.com/LeCAR-Lab/dial-mpc"
+                                        class="external-link button is-normal is-rounded is-dark">
+                                        <span class="icon">
+                                            <i class="fab fa-github"></i>
+                                        </span>
+                                        <span>Code</span>
+                                    </a>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="hero teaser">
+        <div class="container is-max-desktop">
+            <div class="content has-text-centered">
+                <h2 class="title is-3">Overview Video</h2>
+                <!-- invert static/videos/intro.mov -->
+                <!-- <video poster="" id="intro" autoplay controls muted loop playsinline height="100%">
+                    <source src="" type="video/mp4">
+                </video> -->
+            </div>
+        </div>
+    </section>
+
+    <section class="hero is-light is-small">
+        <div class="hero-body">
+            <div class="container">
+                <h2 class="title is-3 has-text-centered">DAIL-MPC enable both agile and precise locomotion</h2>
+                <div id="results-carousel" class="carousel results-carousel">
+                    <div class="item item-steve">
+                        <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+                            <source src="./static/videos/gallop.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                    <div class="item item-steve">
+                        <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+                            <source src="./static/videos/jump.mp4" type="video/mp4">
+                        </video>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container is-max-desktop">
+            <!-- Abstract. -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <h2 class="title is-3">Abstract</h2>
+                    <div class="content has-text-justified">
+                        <p>
+                            Due to high dimensionality and non-convexity,
+                            real-time optimal control using full-order dynamics models
+                            for legged robots is challenging. Therefore, Nonlinear Model
+                            Predictive Control (NMPC) approaches are often limited to
+                            reduced-order models. Sampling-based MPC has shown poten-
+                            tial in nonconvex even discontinuous problems, but often yields
+                            suboptimal solutions with high variance, which limits its appli-
+                            cations in high-dimensional locomotion. This work introduces
+                            DIAL-MPC (Diffusion-Inspired Annealing for Legged MPC),
+                            a sampling-based MPC framework with a novel diffusion-style
+                            annealing process. Such an annealing process is supported by
+                            our theoretical landscape analysis of Model Predictive Path
+                            Integral Control (MPPI) and the connection between MPPI and
+                            single-step diffusion. Algorithmically, DIAL-MPC iteratively
+                            refines solutions online and achieves both global coverage
+                            and local convergence. In quadrupedal torque-level control
+                            tasks, DIAL-MPC reduces the tracking error of standard
+                            MPPI by 13.4 times and outperforms reinforcement learning
+                            (RL) policies by 40% in challenging jumping tasks <b>without
+                                any training</b>. In particular, DIAL-MPC enables precise real-
+                            world quadrupedal jumping with payload. To the best of our
+                            knowledge, DIAL-MPC is the first training-free method that
+                            optimizes over full-order quadruped dynamics in real-time.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!--/ Abstract. -->
+
+            <!-- Paper video. -->
+            <!-- Paper video. -->
+            <div class="columns is-centered has-text-centered">
+                <div class="column is-four-fifths">
+                    <!-- include a figure -->
+                    <figure class="image">
+                        <img src="./static/images/teaser.png" alt="Teaser" style="max-width: 100%;">
+                    </figure>
+                    <p>
+                        DIAL-MPC is a sampling-based MPC framework with a novel diffusion-style annealing process.
+                    </p>
+                </div>
+            </div>
+
+
+
+            <!--/ Paper video. -->
+        </div>
+    </section>
+
+    <!-- Why: explain why model-based diffusion is important -->
+    <!-- 1. generalize beyond the data  with model information -->
+    <section class="section">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered">
+                <div class="column">
+                    <div class="content">
+                        <h2 class="title is-3">Why DIAL-MPC?</h2>
+                        <p>
+                            Interactive trajectories:
+                            <a href="">Ant</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How: explain how to implement model-based diffusion -->
+    <!-- 1. score function -->
+    <section class="section">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered">
+                <div class="column">
+                    <div class="content">
+                        <h2 class="title is-3">How Does DIAL-MPC Work?</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section" id="BibTeX">
+        <div class="container is-max-desktop content">
+            <h2 class="title">BibTeX</h2>
+            <pre><code>
+            
+            </code></pre>
+        </div>
+    </section>
+
+
+    <footer class="footer">
+        <div class="container">
+            <div class="columns is-centered">
+                <div class="column is-8">
+                    <div class="content">
+                        <p>
+                            Template comes from
+                            <a href="https://github.com/nerfies/nerfies.github.io">nerfies</a>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>
