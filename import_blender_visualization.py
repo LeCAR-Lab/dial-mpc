@@ -1,116 +1,156 @@
+import sys
 import os
+# for windows
+if os.name == "nt":
+    packages_path = r"C:\Users\JC-Ba\AppData\Roaming\Python\Python311\Scripts" + r"\\..\\site-packages"
+    sys.path.insert(0, packages_path)
 import bpy
 import pickle
 import numpy as np
 import matplotlib as mpl
-from mathutils import Quaternion, Matrix, Vector
-
-object_mapper = {
-    "ur5e/base": "base",
-    "ur5e/shoulder_link": "shoulder_link",
-    "ur5e/upper_arm_link": "upper_arm_link",
-    "ur5e/forearm_link": "forearm_link",
-    "ur5e/wrist_1_link": "wrist_1_link",
-    "ur5e/wrist_2_link": "wrist_2_link",
-    "ur5e/wrist_3_link": "wrist_3_link",
-    "ur5e/wsg50/base": "WSG50_110",
-    "ur5e/wsg50/right_finger": "right_finger",
-    "ur5e/wsg50/left_finger": "left_finger",
-    "drawer/bottom_drawer": "bottom_drawer",
-    "drawer/middle_drawer": "middle_drawer",
-    "drawer/top_drawer": "top_drawer",
-    "vitamin bottle/": "vitamin",
-    "purple pencilcase/": "pencilcase",
-    "crayon box/": "crayon",
-    "horse toy/": "horse",
-    "left_bin/left_bin": "left_bin",
-    "right_bin/right_bin": "right_bin",
-    "mailbox/mailbox_flag": "mailbox_flag",
-    "mailbox/mailbox": "mailbox_body",
-    "mailbox/mailbox_lid": "mailbox_lid",
-    "amazon package/amazon package": "amazon_package",
-    "yellow_block/yellow_block": "yellow_block",
-    "closest_box/closest_box": "closest_box",
-    "middle_box/middle_box": "middle_box",
-    "furthest_box/furthest_box": "furthest_box",
-    "catapult/catapult": "catapult frame",
-    "catapult/button": "catapult button",
-    "catapult/catapult_arm": "catapult arm",
-    "school bus toy/school bus toy": "school_bus",
-    "red_block/red_block": "red_block",
-}
+from mathutils import Quaternion, Matrix, Vector, Euler
 
 
-def import_animation(root_path: str):
-    anim_data = pickle.load(open(root_path + "anim_data.pkl", "rb"))
-    for obj_key, timestamped_obj_poses in anim_data.items():
-        if obj_key not in object_mapper:
+link_mapper = [
+    "base",
+    # "FL_foot_target",
+    "FL_hip",
+    "FL_thigh",
+    "FL_calf",
+    # "FL_foot",
+    # "FR_foot_target",
+    "FR_hip",
+    "FR_thigh",
+    "FR_calf",
+    # "FR_foot",
+    # "RL_foot_target",
+    "RL_hip",
+    "RL_thigh",
+    "RL_calf",
+    # "RL_foot",
+    # "RR_foot_target",
+    "RR_hip",
+    "RR_thigh",
+    "RR_calf",
+    # "RR_foot",
+]
+
+
+def import_animation():
+    dt = 0.02
+    Hrender = 50
+    link_pos = np.load(r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data\go2_xpos.npy")[:Hrender]
+    link_quat_wxyz = np.load(r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data\go2_xquat.npy")[:Hrender]
+    link_quat_xyzw = link_quat_wxyz[:, :, [1, 2, 3, 0]]
+    link_pos = np.transpose(link_pos, (1, 0, 2))
+    link_quat_xyzw = np.transpose(link_quat_xyzw, (1, 0, 2))
+
+    # Isaac Gym is Y-up Right-handed coordinate system
+    # Blender is Z-up left-handed coordinate system
+    # So we need to convert the quaternion from Isaac Gym to Blender
+    yup_to_zup = Euler((np.pi / 2, 0, 0), "XYZ").to_quaternion()
+    for link_idx, (link_pos_traj, link_quat_traj) in enumerate(
+        zip(link_pos, link_quat_xyzw)
+    ):
+        link_name = link_mapper[link_idx]
+        if link_name not in bpy.data.objects:
             continue
-        blender_obj_name = object_mapper[obj_key]
-        blender_obj = bpy.data.objects[blender_obj_name]
-        for frame_idx, (timestamp, pos, euler) in enumerate(timestamped_obj_poses):
-            # insert position keyframe
+        blender_obj = bpy.data.objects[link_name]
+        for frame_idx, (pos, quat) in enumerate(zip(link_pos_traj, link_quat_traj)):
+            # Insert position keyframe
             blender_obj.location = pos
             blender_obj.keyframe_insert("location", frame=frame_idx)
-            # change rotation mode to euler
-            blender_obj.rotation_mode = "XYZ"
-            # insert rotation keyframe
-            blender_obj.rotation_euler = euler
-            blender_obj.keyframe_insert("rotation_euler", frame=frame_idx)
+            # Change rotation mode to quaternion
+            blender_obj.rotation_mode = "QUATERNION"
+            # Blender's quaternion constructor is in wxyz format
+            # Insert quaternion keyframe, applying transform
+            blender_obj.rotation_quaternion = (
+                Quaternion((quat[3], quat[0], quat[1], quat[2])) @ yup_to_zup
+            )
+            blender_obj.keyframe_insert("rotation_quaternion", frame=frame_idx)
 
+    # Generate the actsss array
+    Hsample = 20
+    Nsample = 10
+    Hrollout = link_pos.shape[1]
+    actsss = np.zeros([Hrollout, Nsample, Hsample, 3])
+    for i in range(Hrollout):
+        for j in range(Nsample):
+            actsss[i, j, :] = link_pos[0, i]
+            actsss[i, j, :, 0] += (
+                np.sin(i / Hrollout * np.pi + (i + j) / Hrollout * np.pi / 2) * 0.3
+                + np.random.randn(Hsample) * 0.1
+                + np.cos(i / Hrollout * np.pi * 2.0 + (i + j) / Hrollout * np.pi / 2) * 0.3
+            )
+            actsss[i, j, :, 2] += (
+                np.cos(i / Hrollout * np.pi + (i + j) / Hrollout * np.pi / 2) * 0.3
+                + np.random.randn(Hsample) * 0.1
+                + np.cos(i / Hrollout * np.pi * 2.0 + (i + j) / Hrollout * np.pi / 2) * 0.3
+            )
 
-def import_traces(root_path: str, num_extra_pts: int = 20):
-    action_path = os.path.join(root_path, "timestamped_actions.pkl")
-    timestamped_actions = pickle.load(open(action_path, "rb"))
-    new_collection = bpy.data.collections.new("traces")
-    bpy.context.scene.collection.children.link(new_collection)
+    # Create and animate curves based on actsss data
+    for j in range(Nsample):
+        # Create a new curve data-block
+        curve_data = bpy.data.curves.new(name=f'AnimatedCurve_{j}', type='CURVE')
+        curve_data.dimensions = '3D'
 
-    for frame_idx, (timestamp, action_seqs) in enumerate(timestamped_actions.items()):
-        vertices = []
-        vertex_colors = []
-        for action_seq in action_seqs:
-            prev_pos = action_seq[0][:3]
-            # densely interpolate
+        # Adjust the bevel depth to make the curve thicker
+        curve_data.bevel_depth = 0.005  # Adjust this value for desired thickness
+        curve_data.fill_mode = 'FULL'  # Ensures the curve is fully filled
 
-            total_pts = len(action_seq) * num_extra_pts
-            action_colors = mpl.colormaps["jet"](np.linspace(0, 1, total_pts)).tolist()
-            p_idx = 0
+        # Create a new NURBS spline in that curve
+        spline = curve_data.splines.new(type='NURBS')
+        spline.points.add(Hsample - 1)  # Add points (minus the default point)
 
-            for action in action_seq[1:]:
-                pos = action[:3]
-                for i in range(num_extra_pts):
-                    alpha = i / num_extra_pts
-                    vertices.append((alpha * pos + (1 - alpha) * prev_pos).tolist())
-                    vertex_colors.append(action_colors[p_idx])
-                    p_idx += 1
-                prev_pos = action[:3]
-        mesh = bpy.data.meshes.new(f"trace_{frame_idx}")
-        mesh.from_pydata(vertices, [], [])
-        mesh.update()
-        new_object = bpy.data.objects.new(f"trace_{frame_idx}", mesh)
+        # Initialize the spline points with the first frame data
+        for i in range(Hsample):
+            x, y, z = actsss[0, j, i]
+            spline.points[i].co = (x, y, z, 1)  # The fourth value is the weight (set to 1)
 
-        colattr = new_object.data.color_attributes.new(
-            name="FloatColAttr",
-            type="FLOAT_COLOR",
-            domain="POINT",
-        )
-        for v_idx in range(len(vertices)):
-            colattr.data[v_idx].color = vertex_colors[v_idx]
-        new_collection.objects.link(new_object)
-        # add geometry node modifier
-        modifier = new_object.modifiers.new(name="GeometryNodes", type="NODES")
-        modifier.node_group = bpy.data.node_groups["Particle Viewer.001"]
-        # set active object
-        bpy.context.view_layer.objects.active = new_object
-        bpy.context.active_object.hide_render = True
-        bpy.context.active_object.keyframe_insert("hide_render", frame=frame_idx - 1)
-        bpy.context.active_object.hide_render = False
-        bpy.context.active_object.keyframe_insert("hide_render", frame=frame_idx)
-        bpy.context.active_object.hide_render = True
-        bpy.context.active_object.keyframe_insert("hide_render", frame=frame_idx + 1)
+        # Set the order of the NURBS spline (degree + 1)
+        spline.order_u = min(4, Hsample)  # Order cannot exceed number of points
+        spline.use_endpoint_u = True
+
+        # Create a new object with the curve data
+        curve_object = bpy.data.objects.new(f'AnimatedCurveObject_{j}', curve_data)
+
+        # Link the object to the current collection
+        bpy.context.collection.objects.link(curve_object)
+
+        # Create a new material and assign a color
+        material = bpy.data.materials.new(name=f'CurveMaterial_{j}')
+        # Generate a random color based on the index j
+        color = (np.random.rand(), np.random.rand(), np.random.rand(), 1.0)
+        material.diffuse_color = color  # RGBA values
+
+        # Enable 'Use Nodes' to access material nodes
+        material.use_nodes = True
+        nodes = material.node_tree.nodes
+        principled_bsdf = nodes.get('Principled BSDF')
+        if principled_bsdf:
+            principled_bsdf.inputs['Base Color'].default_value = color
+
+        # Assign the material to the curve object
+        if curve_object.data.materials:
+            # Assign to first material slot
+            curve_object.data.materials[0] = material
+        else:
+            # Create a new material slot and assign
+            curve_object.data.materials.append(material)
+
+        # Animate the curve by modifying control points over time
+        for frame in range(Hrollout):
+            bpy.context.scene.frame_set(frame)
+            for i in range(Hsample):
+                x, y, z = actsss[frame, j, i]
+                spline.points[i].co = (x, y, z, 1)
+                # Insert keyframe for the control point
+                spline.points[i].keyframe_insert(data_path='co', frame=frame)
+
+    # Set the scene frame range
+    bpy.context.scene.frame_start = 0
+    bpy.context.scene.frame_end = Hrollout - 1
 
 
 if __name__ == "__main__":
-    # from scripts/export_blender_visualization.py
-    root_path = "/path/to/output/dir"
-    import_traces(root_path)
+    import_animation()
