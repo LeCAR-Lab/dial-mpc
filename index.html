@@ -47,7 +47,8 @@
             <div class="container is-max-desktop">
                 <div class="columns is-centered">
                     <div class="column has-text-centered">
-                        <h1 class="title is-1 publication-title">Full-Order Sampling-Based MPC for Torque-Level Locomotion Control via Diffusion-Style Annealing</h1>
+                        <h1 class="title is-1 publication-title">Full-Order Sampling-Based MPC for Torque-Level
+                            Locomotion Control via Diffusion-Style Annealing</h1>
                         <div class="is-size-5 publication-authors">
                             <span class="author-block">
                                 <a href="https://haoruxue.github.io">Haoru Xue</a><sup>*</sup>,
@@ -136,7 +137,7 @@
     <section class="hero is-light is-small">
         <div class="hero-body">
             <div class="container">
-                <h2 class="title is-3 has-text-centered">DAIL-MPC enable both agile and precise locomotion</h2>
+                <h2 class="title is-3 has-text-centered">Highlights (TODO: put rendered / real-world videos here)</h2>
                 <div id="results-carousel" class="carousel results-carousel">
                     <div class="item item-steve">
                         <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
@@ -218,10 +219,23 @@
             <div class="columns is-centered">
                 <div class="column">
                     <div class="content">
-                        <h2 class="title is-3">Why DIAL-MPC?</h2>
+                        <h2 class="title is-3">What is DIAL-MPC?</h2>
                         <p>
-                            Interactive trajectories:
-                            <a href="">Ant</a>
+                            <b>
+                                DIAL-MPC is a <u>training-free</u> full-order torque-level legged robot controller:
+                            </b>
+                            DIAL-MPC is a MPC framework that can optimize over full-order quadruped dynamics in
+                            real-time without heavy assumption on dynamics and cost functions.
+                            To our knowledge, this is the first framework achieving both real-time flexibility
+                            and RL-level agility in legged locomotion.
+                        </p>
+                        <p>
+                            <b>
+                                Diffusion-Inspired Annealing for Legged MPC (DIAL-MPC) = Sampling-based MPC +
+                                Diffusion-style Annealing:
+                            </b>
+                            To achieve efficient real-time locomotion, DIAL-MPC extends MPPI with a diffusion-style
+                            annealing process to achieve better global coverage and local convergence.
                         </p>
                     </div>
                 </div>
@@ -237,6 +251,123 @@
                 <div class="column">
                     <div class="content">
                         <h2 class="title is-3">How Does DIAL-MPC Work?</h2>
+                    </div>
+                    <p>
+                        <b>
+                            MPPI is a single-stage diffusion process.
+                        </b>
+                        Given the following non-convex cost function, MPPI aims to sample from p0.
+                        Our theoretical analysis reveals that MPPI is a single-stage diffusion process, where the score
+                        function is approximated with Monte Carlo sampling.
+                    </p>
+                    <figure class="image">
+                        <img src="./static/images/demo_task.png" alt="Demo Task" style="max-width: 50%;">
+                    </figure>
+                    <p>
+                        <b>
+                            MPPI suffers from suboptimal solutions or high variance.
+                        </b>
+                        Due to the sparsity and non-smooth nature of p0, MPPI either optimize a over-smoothed function or a highly non-smooth function, leading to suboptimal solutions or high variance. Diffusion process overcomes this problem by iteratively refining solutions over a series of smoothing levels.
+                    </p>
+                    <figure class="image">
+                        <img src="./static/images/demo_forward.png" alt="DIAL-MPC" style="max-width: 50%;">
+                    </figure>
+                    <p>
+                        <b>
+                            DIAL-MPC use a multi-stage diffusion process for better coverage and convergence.
+                        </b>
+                        Compared with MPPI which only uses a single-stage diffusion process, DIAL-MPC iteratively
+                        refines solutions in a diffusion manner, leading to better coverage and convergence for
+                        contact-rich locomotion tasks.
+                    </p>
+                    <figure class="image">
+                        <img src="./static/images/demo_compare.png" alt="DIAL-MPC" style="max-width: 50%;">
+                    </figure>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- compare with model-free RL: what's the pros and cons? -->
+    <section class="section">
+        <div class="container is-max-desktop">
+            <div class="columns is-centered">
+                <div class="column">
+                    <div class="content">
+                        <h2 class="title is-3">Compare With Other Methods</h2>
+                        <p>
+
+                            <b>
+                                Compared with RL:
+                            </b>
+                            DIAL-MPC use a very similar sampling-based method as RL. But DIAL-MPC is trainig-free and
+                            can achieve higher precision control thanks to its diffusion-style annealing process.
+                        </p>
+                        <p>
+                            <b>
+                                Compared with Standard Sampling-based MPC:
+                            </b>
+                            DIAL-MPC achieve more agile motion and higher precision control with better sampling
+                            strategy inspired by diffusion models.
+                        </p>
+                        <p>
+                            <b>
+                                Compared with Nonlinear MPC:
+                            </b>
+                            DIAL-MPC can handle full-order dynamics and arbitrary cost functions in a plug-and-play
+                            manner, while existing MPC methods require high-order models and specialized cost functions.
+                        </p>
+                        <table border="1">
+                            <tr>
+                                <th>Aspect</th>
+                                <th>DIAL-MPC</th>
+                                <th>Sampling-based MPC Baselines</th>
+                                <th>Nonlinear MPC</th>
+                                <th>Model-Free RL</th>
+                            </tr>
+                            <tr>
+                                <td>Agile Motion</td>
+                                <td>✅</td>
+                                <td>❌</td>
+                                <td>❌</td>
+                                <td>✅</td>
+                            </tr>
+                            <tr>
+                                <td>High-precision Control</td>
+                                <td>✅</td>
+                                <td>❌</td>
+                                <td>✅</td>
+                                <td>❌</td>
+                            </tr>
+                            <tr>
+                                <td>Full-Order Dynamics</td>
+                                <td>✅</td>
+                                <td>✅</td>
+                                <td>❌</td>
+                                <td>✅</td>
+                            </tr>
+                            <tr>
+                                <td>Aribitrary Cost</td>
+                                <td>✅</td>
+                                <td>✅</td>
+                                <td>❌</td>
+                                <td>✅</td>
+                            </tr>
+                            <tr>
+                                <td>Training-Free</td>
+                                <td>✅</td>
+                                <td>✅</td>
+                                <td>✅</td>
+                                <td>❌</td>
+                            </tr>
+                            <tr>
+                                <td>Test-time generalization</td>
+                                <td>✅</td>
+                                <td>✅</td>
+                                <td>✅</td>
+                                <td>❌</td>
+                            </tr>
+                        </table>
                     </div>
                 </div>
             </div>
