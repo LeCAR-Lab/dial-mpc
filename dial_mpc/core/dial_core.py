@@ -20,6 +20,7 @@ import brax.envs as brax_envs
 from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
 from dial_mpc.envs.unitree_h1_env import UnitreeH1WalkEnv, UnitreeH1WalkEnvConfig
 import dial_mpc.envs as dial_envs
+from dial_mpc.utils.model_utils import get_example_path
 
 plt.style.use("science")
 
@@ -195,9 +196,27 @@ class MBDPI:
 def main():
     art.tprint("LeCAR @ CMU\nDIAL-MPC", font="big", chr_ignore=True)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="dial_mpc_config.yaml")
+    config_or_example = parser.add_mutually_exclusive_group(required=True)
+    config_or_example.add_argument("--config", type=str, default=None)
+    config_or_example.add_argument("--example", type=str, default=None)
+    config_or_example.add_argument("--list-examples", action="store_true")
     args = parser.parse_args()
-    config_dict = yaml.safe_load(open(args.config))
+
+    examples = [
+        "unitree_h1_jog",
+    ]
+
+    if args.list_examples:
+        print("Examples:")
+        for example in examples:
+            print(f"  {example}")
+        return
+
+    if args.example is not None:
+        config_dict = yaml.safe_load(
+            open(get_example_path(args.example + ".yaml")))
+    else:
+        config_dict = yaml.safe_load(open(args.config))
 
     arg_keys = Args.__dataclass_fields__.keys() & config_dict.keys()
     arg_dict = {k: config_dict[k] for k in arg_keys}
@@ -209,6 +228,7 @@ def main():
     env_config_keys = env_config.__dataclass_fields__.keys() & config_dict.keys()
     env_config_dict = {k: config_dict[k] for k in env_config_keys}
 
+    print("Creating environment")
     env = brax_envs.get_environment(
         args.env_name, config=env_config(**env_config_dict))
     reset_env = jax.jit(env.reset)
@@ -244,6 +264,7 @@ def main():
             n_diffuse = args.Ndiffuse
             if t == 0:
                 n_diffuse = args.Ndiffuse_init
+                print("Performing JIT on DIAL-MPC")
 
             t0 = time.time()
             for i in range(n_diffuse):
@@ -272,6 +293,7 @@ def main():
     plt.savefig(os.path.join(args.output_dir, f"{timestamp}_rews_plan.pdf"))
 
     # host webpage with flask
+    print("Processing rollout for visualization")
     import flask
 
     app = flask.Flask(__name__)

@@ -1,6 +1,6 @@
 # dial-mpc
 
-## Install unitree_sdk2_python
+## Install `unitree_sdk2_python`
 Execute the following commands in the terminal:
 
 ```bash
@@ -10,6 +10,22 @@ git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
 cd unitree_sdk2_python
 pip3 install -e .
 ```
+
+## Run Examples
+
+List available examples:
+
+```bash
+dial-mpc --list-examples
+```
+
+Run an example:
+
+```bash
+dial-mpc --example unitree_h1_jog
+```
+
+After rollout completes, go to `127.0.0.1:5000` to visualize the rollouts.
 
 ## Contributing New Environment
 

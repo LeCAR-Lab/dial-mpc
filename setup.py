@@ -16,7 +16,7 @@ setup(name='dial-mpc',
           'brax',
           'art',
       ],
-      package_data={'dial-mpc': ['models/']},
+      package_data={'dial-mpc': ['models/', 'examples/']},
       entry_points={
           'console_scripts': [
               'dial-mpc=dial_mpc.core.dial_core:main',
