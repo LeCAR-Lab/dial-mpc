@@ -10,7 +10,7 @@ from functools import partial
 from brax import math
 import brax.base as base
 from brax.base import System
-from brax import envs
+from brax import envs as brax_envs
 from brax.envs.base import PipelineEnv, State
 from brax.io import html, mjcf, model
 
@@ -20,6 +20,7 @@ from mujoco import mjx
 from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
 from dial_mpc.utils.math_utils import global_to_body_velocity
 from dial_mpc.utils.model_utils import get_model_path
+import dial_mpc.envs as dial_envs
 
 
 @dataclass
@@ -368,4 +369,5 @@ class UnitreeH1WalkEnv(BaseEnv):
         return new_lin_vel_cmd, new_ang_vel_cmd
 
 
-envs.register_environment("unitree_h1_walk", UnitreeH1WalkEnv)
+brax_envs.register_environment("unitree_h1_walk", UnitreeH1WalkEnv)
+dial_envs.register_config("unitree_h1_walk", UnitreeH1WalkEnvConfig)

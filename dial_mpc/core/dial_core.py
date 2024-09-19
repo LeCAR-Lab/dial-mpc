@@ -15,10 +15,11 @@ from jax_cosmo.scipy.interpolate import InterpolatedUnivariateSpline
 import functools
 
 from brax.io import html
-import brax.envs as envs
+import brax.envs as brax_envs
 
 from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
 from dial_mpc.envs.unitree_h1_env import UnitreeH1WalkEnv, UnitreeH1WalkEnvConfig
+import dial_mpc.envs as dial_envs
 
 plt.style.use("science")
 
@@ -197,15 +198,19 @@ def main():
     parser.add_argument("--config", type=str, default="dial_mpc_config.yaml")
     args = parser.parse_args()
     config_dict = yaml.safe_load(open(args.config))
-    args = Args(**config_dict)
+
+    arg_keys = Args.__dataclass_fields__.keys() & config_dict.keys()
+    arg_dict = {k: config_dict[k] for k in arg_keys}
+    args = Args(**arg_dict)
     rng = jax.random.PRNGKey(seed=args.seed)
 
-    configs = {
-        "unitree_h1_walk": UnitreeH1WalkEnvConfig,
-    }
-    env_config = configs[args.env_name]
+    # find env config
+    env_config = dial_envs.get_config(args.env_name)
+    env_config_keys = env_config.__dataclass_fields__.keys() & config_dict.keys()
+    env_config_dict = {k: config_dict[k] for k in env_config_keys}
 
-    env = envs.get_environment(args.env_name, config=env_config())
+    env = brax_envs.get_environment(
+        args.env_name, config=env_config(**env_config_dict))
     reset_env = jax.jit(env.reset)
     step_env = jax.jit(env.step)
     mbdpi = MBDPI(args, env)
