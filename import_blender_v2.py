@@ -41,7 +41,7 @@ def import_animation():
     Hsample = 100
     Nsample = 1
     Ndiffuse = 1
-    Ndownsample = 10
+    Ndownsample = 20
     link_pos_original = np.load(r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data\go2_xpos.npy")
     link_quat_wxyz_original = np.load(r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data\go2_xquat.npy")
     xsite_feet_original = np.load(
@@ -117,7 +117,7 @@ def import_animation():
         # create material according to Ndiffuse (i=0, it is light red, i=Ndiffuse-1, it is dark red)
         # Create a new material and assign a color
         material = bpy.data.materials.new(name=f"diffuse_material_{j}")
-        k = i / (Ndiffuse - 1)
+        k = i / Ndiffuse 
         k = 0.2 + 0.8 * k
         # color from light red to dark red
         red = np.array([1, 0, 0, 1])
@@ -150,9 +150,14 @@ def import_animation():
                 curve_data.fill_mode = "FULL"  # Ensures the curve is fully filled
 
                 # Create a new basal spline in that curve
-                spline = curve_data.splines.new(type="POLY")
-                spline.points.add(Hsample//Ndownsample-1)  # Add points (minus the default point)
+                spline = curve_data.splines.new(type="NURBS")
+                if Hsample % Ndownsample == 0:
+                    spline.points.add(Hsample//Ndownsample)  # Add points (minus the default point)
+                else:
+                    spline.points.add(Hsample//Ndownsample-1)  # Add points (minus the default point)
                 spline.use_cyclic_u = False  # Ensure the spline is not cyclic
+                spline.order_u = 4  # Order can be between 2 and 6
+                spline.resolution_u = 12  # Increase for smoother curves
 
                 # Initialize the spline points with the first frame data
                 if traj_name == "torso":
@@ -168,7 +173,7 @@ def import_animation():
                 for p in range(Hsample):
                     if p % Ndownsample != 0:
                         continue
-                    x, y, z = traj[0, p//Ndownsample]
+                    x, y, z = traj[0, p]
                     spline.points[p//Ndownsample].co = (x, y, z, 1)  
 
 
@@ -203,7 +208,7 @@ def import_animation():
                     for k in range(Hsample):
                         if k % Ndownsample != 0:
                             continue
-                        x, y, z = traj[frame, k//Ndownsample]
+                        x, y, z = traj[frame, k]
                         spline.points[k//Ndownsample].co = (x, y, z, 1)
 
 
