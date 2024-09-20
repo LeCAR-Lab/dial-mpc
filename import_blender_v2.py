@@ -37,11 +37,11 @@ link_mapper = [
 
 def import_animation():
     dt = 0.02
-    Hrender = 3300
-    Hsample = 90
-    Nsample = 8
-    Ndiffuse = 4
-    Ndownsample = 15
+    Hrender = 300
+    Hsample = 100
+    Nsample = 1
+    Ndiffuse = 1
+    Ndownsample = 10
     link_pos_original = np.load(r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data\go2_xpos.npy")
     link_quat_wxyz_original = np.load(r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data\go2_xquat.npy")
     xsite_feet_original = np.load(
@@ -95,10 +95,10 @@ def import_animation():
     xssss_torso = np.zeros((Hrender, Ndiffuse, Nsample, Hsample, 3)) 
     xssss_feet = np.zeros((Hrender, Ndiffuse, Nsample, Hsample, 4, 3))
     for i in range(Hrender):
-        xs_torso_ref = link_pos_original[i : i + Hsample, 0]+ np.array([0.4, 0.0, 0.0])
+        xs_torso_ref = link_pos_original[i : i + Hsample, 0]+ np.array([0.35, 0.0, 0.0])
         xs_feet_ref = xsite_feet_original[i : i + Hsample]
         for j in range(Ndiffuse):
-            sigma = 0.1 * (0.5**j)
+            sigma = 0.02 * (0.5**j)
             xssss_torso[i, j] = (
                 xs_torso_ref + np.random.randn(Nsample, Hsample, 3) * sigma
             )
