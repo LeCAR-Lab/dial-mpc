@@ -1,4 +1,9 @@
 import os
+import sys
+# check if the system is windows, if so, add the path of blender
+if os.name == "nt":
+    packages_path = r"C:\Users\JC-Ba\AppData\Roaming\Python\Python311\Scripts" + r"\\..\\site-packages"
+    sys.path.insert(0, packages_path )
 import bpy
 import pickle
 import numpy as np
@@ -33,8 +38,10 @@ link_mapper = [
 def import_animation():
     dt = 0.02
     Hrender = 10
-    link_pos = np.load("/Users/pcy/Downloads/dial-mpc/data/go2_xpos.npy")[:Hrender]
-    link_quat_wxyz = np.load("/Users/pcy/Downloads/dial-mpc/data/go2_xquat.npy")[:Hrender]
+    Hsample = 30
+    Nsample = 10
+    link_pos = np.load(r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data\go2_xpos.npy")
+    link_quat_wxyz = np.load(r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data\go2_xquat.npy")
     link_quat_xyzw = link_quat_wxyz[:, :, [1, 2, 3, 0]]
     # Nlink = link_pos.shape[1]
     # task = "jogging"
@@ -75,63 +82,74 @@ def import_animation():
 
             mesh = bpy.data.meshes.new(f"trace_{frame_idx}")
 
-    Hsample = 20
-    Nsample = 10
-    Hrollout = link_pos.shape[1]
-    actsss = np.zeros([Hrollout, Nsample, Hsample, 3])
-    for i in range(Hrollout):
-        for j in range(Nsample):
-            actsss[i, j, :] = link_pos[0, i]
-            actsss[i, j, :, 0] += np.sin(i / Hrollout * np.pi + (i+j) / Hrollout * np.pi / 2)
-            actsss[i, j, :, 2] += np.cos(i / Hrollout * np.pi + (i+j) / Hrollout * np.pi / 2)
-    num_extra_pts = 10
-    new_collection = bpy.data.collections.new("traces")
-    bpy.context.scene.collection.children.link(new_collection)
-    for frame_idx, action_seqs in enumerate(actsss):
-        vertices = []
-        vertex_colors = []
-        for action_seq in action_seqs:
-            prev_pos = action_seq[0][:3]
-            # densely interpolate
+            if frame_idx > Hrender:
+                break
 
-            total_pts = len(action_seq) * num_extra_pts
-            action_colors = mpl.colormaps["jet"](np.linspace(0, 1, total_pts)).tolist()
-            p_idx = 0
+    # visualize the trajectory
+    for j in range(Nsample):
+        # Create a new curve data-block
+        curve_data = bpy.data.curves.new(name=f"AnimatedCurve_{j}", type="CURVE")
+        curve_data.dimensions = "3D"
 
-            for action in action_seq[1:]:
-                pos = action[:3]
-                for i in range(num_extra_pts):
-                    alpha = i / num_extra_pts
-                    vertices.append((alpha * pos + (1 - alpha) * prev_pos).tolist())
-                    vertex_colors.append(action_colors[p_idx])
-                    p_idx += 1
-                prev_pos = action[:3]
-        mesh = bpy.data.meshes.new(f"trace_{frame_idx}")
-        mesh.from_pydata(vertices, [], [])
-        mesh.update()
-        new_object = bpy.data.objects.new(f"trace_{frame_idx}", mesh)
+        # Adjust the bevel depth to make the curve thicker
+        curve_data.bevel_depth = 0.005  # Adjust this value for desired thickness
+        curve_data.fill_mode = "FULL"  # Ensures the curve is fully filled
 
-        colattr = new_object.data.color_attributes.new(
-            name="FloatColAttr",
-            type="FLOAT_COLOR",
-            domain="POINT",
-        )
-        for v_idx in range(len(vertices)):
-            colattr.data[v_idx].color = vertex_colors[v_idx]
-        new_collection.objects.link(new_object)
-        # add geometry node modifier
-        modifier = new_object.modifiers.new(name="GeometryNodes", type="NODES")
-        # create a new node group
-        node_group = bpy.data.node_groups.new(name="Particle Viewer", type="GeometryNodeTree")
-        modifier.node_group = node_group
-        # set active object
-        bpy.context.view_layer.objects.active = new_object
-        bpy.context.active_object.hide_render = True
-        bpy.context.active_object.keyframe_insert("hide_render", frame=frame_idx - 1)
-        bpy.context.active_object.hide_render = False
-        bpy.context.active_object.keyframe_insert("hide_render", frame=frame_idx)
-        bpy.context.active_object.hide_render = True
-        bpy.context.active_object.keyframe_insert("hide_render", frame=frame_idx + 1)
+        # Create a new NURBS spline in that curve
+        spline = curve_data.splines.new(type="NURBS")
+        spline.points.add(Hsample - 1)  # Add points (minus the default point)
+
+        # Initialize the spline points with the first frame data
+        for i in range(Hsample):
+            x, y, z = actsss[0, j, i]
+            spline.points[i].co = (
+                x,
+                y,
+                z,
+                1,
+            )  # The fourth value is the weight (set to 1)
+
+        # Set the order of the NURBS spline (degree + 1)
+        spline.order_u = min(4, Hsample)  # Order cannot exceed number of points
+        spline.use_endpoint_u = True
+
+        # Create a new object with the curve data
+        curve_object = bpy.data.objects.new(f"AnimatedCurveObject_{j}", curve_data)
+
+        # Link the object to the current collection
+        bpy.context.collection.objects.link(curve_object)
+
+        # Create a new material and assign a color
+        material = bpy.data.materials.new(name=f"CurveMaterial_{j}")
+        # Generate a random color based on the index j
+        color = (np.random.rand(), np.random.rand(), np.random.rand(), 1.0)
+        material.diffuse_color = color  # RGBA values
+
+        # Enable 'Use Nodes' to access material nodes
+        material.use_nodes = True
+        nodes = material.node_tree.nodesl
+        principled_bsdf = nodes.get("Principled BSDF")
+        if principled_bsdf:
+            principled_bsdf.inputs["Base Color"].default_value = color
+            # principled_bsdf.inputs['Emission'].default_value = color  # Emission color (optional)
+
+        # Assign the material to the curve object
+        if curve_object.data.materials:
+            # Assign to first material slot
+            curve_object.data.materials[0] = material
+        else:
+            # Create a new material slot and assign
+            curve_object.data.materials.append(material)
+
+        # Animate the curve by modifying control points over time
+        for frame in range(Hrollout):
+            bpy.context.scene.frame_set(frame)
+            for i in range(Hsample):
+                x, y, z = actsss[frame, j, i]
+                spline.points[i].co = (x, y, z, 1)
+                # Insert keyframe for the control point
+                spline.points[i].keyframe_insert(data_path="co", frame=frame)
+
 
 if __name__ == "__main__":
     import_animation()
