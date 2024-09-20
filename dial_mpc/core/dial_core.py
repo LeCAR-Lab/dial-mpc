@@ -20,7 +20,7 @@ import brax.envs as brax_envs
 from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
 from dial_mpc.envs.unitree_h1_env import UnitreeH1WalkEnv, UnitreeH1WalkEnvConfig
 import dial_mpc.envs as dial_envs
-from dial_mpc.utils.model_utils import get_example_path
+from dial_mpc.utils.io_utils import get_example_path
 
 plt.style.use("science")
 
@@ -40,7 +40,7 @@ def rollout_us(step_env, state, us):
 
 
 @dataclass
-class Args:
+class DialConfig:
     # exp
     seed: int = 0
     output_dir: str = "output"
@@ -67,7 +67,7 @@ def softmax_update(weights, Y0s, sigma, mu_0t):
 
 
 class MBDPI:
-    def __init__(self, args: Args, env):
+    def __init__(self, args: DialConfig, env):
         self.args = args
         self.env = env
         self.nu = env.action_size
@@ -218,9 +218,9 @@ def main():
     else:
         config_dict = yaml.safe_load(open(args.config))
 
-    arg_keys = Args.__dataclass_fields__.keys() & config_dict.keys()
+    arg_keys = DialConfig.__dataclass_fields__.keys() & config_dict.keys()
     arg_dict = {k: config_dict[k] for k in arg_keys}
-    args = Args(**arg_dict)
+    args = DialConfig(**arg_dict)
     rng = jax.random.PRNGKey(seed=args.seed)
 
     # find env config
