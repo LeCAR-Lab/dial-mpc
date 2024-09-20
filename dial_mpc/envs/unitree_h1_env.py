@@ -232,8 +232,8 @@ class UnitreeH1WalkEnv(BaseEnv):
         # z_feet = pipeline_state.site_xpos[self._feet_site_id][:, 2]
         z_feet_tar = self.get_foot_step(state.info["step"] * self.dt)
         # reward_gaits = -jnp.sum(((z_feet_tar - z_feet)) ** 2)
-        z_feet = jnp.array([jnp.min(pipeline_state.contact.dist[:4]), jnp.min(
-            pipeline_state.contact.dist[4:])])
+        z_feet = jnp.array([jnp.min(pipeline_state.contact.dist[:2]), jnp.min(
+            pipeline_state.contact.dist[2:])])
         reward_gaits = -jnp.sum((z_feet_tar - z_feet) ** 2)
         # foot contact data based on z-position
         # pytype: disable=attribute-error
@@ -284,7 +284,7 @@ class UnitreeH1WalkEnv(BaseEnv):
             reward_gaits * 5.0
             + reward_air_time * 0.0
             + reward_pos * 0.0
-            + reward_upright * 0.1
+            + reward_upright * 0.5
             + reward_yaw * 0.1
             # + reward_pose * 0.0
             + reward_vel * 1.0
@@ -370,4 +370,3 @@ class UnitreeH1WalkEnv(BaseEnv):
 
 
 brax_envs.register_environment("unitree_h1_walk", UnitreeH1WalkEnv)
-dial_envs.register_config("unitree_h1_walk", UnitreeH1WalkEnvConfig)

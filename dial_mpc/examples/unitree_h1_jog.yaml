@@ -1,6 +1,6 @@
 # DIAL-MPC
 seed: 0
-output_dir: dial_mpc_ws/unitree_h1_jog
+output_dir: unitree_h1_jog
 n_steps: 400
 
 env_name: unitree_h1_walk

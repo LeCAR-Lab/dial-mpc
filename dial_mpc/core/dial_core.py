@@ -17,8 +17,6 @@ import functools
 from brax.io import html
 import brax.envs as brax_envs
 
-from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
-from dial_mpc.envs.unitree_h1_env import UnitreeH1WalkEnv, UnitreeH1WalkEnvConfig
 import dial_mpc.envs as dial_envs
 from dial_mpc.utils.io_utils import get_example_path, load_dataclass_from_dict
 
@@ -194,6 +192,13 @@ class MBDPI:
 
 
 def main():
+
+    def reverse_scan(rng_Y0_state, factor):
+        rng, Y0, state = rng_Y0_state
+        rng, Y0, info = mbdpi.reverse_once(
+            state, rng, Y0, factor)
+        return (rng, Y0, state), info
+
     art.tprint("LeCAR @ CMU\nDIAL-MPC", font="big", chr_ignore=True)
     parser = argparse.ArgumentParser()
     config_or_example = parser.add_mutually_exclusive_group(required=True)
@@ -264,9 +269,8 @@ def main():
                 print("Performing JIT on DIAL-MPC")
 
             t0 = time.time()
-            for i in range(n_diffuse):
-                rng, Y0, info = mbdpi.reverse_once(
-                    state, rng, Y0, mbdpi.sigma_control*(dial_config.traj_diffuse_factor**i))
+            traj_diffuse_factors = dial_config.traj_diffuse_factor**(jnp.arange(n_diffuse))[:, None]
+            (rng, Y0, _), info = jax.lax.scan(reverse_scan, (rng, Y0, state), traj_diffuse_factors)
             rews_plan.append(info["rews"].mean())
             freq = 1 / (time.time() - t0)
             pbar.set_postfix(
@@ -286,9 +290,9 @@ def main():
     timestamp = time.strftime("%Y%m%d-%H%M%S")
 
     # plot rews_plan
-    plt.plot(rews_plan)
-    plt.savefig(os.path.join(dial_config.output_dir,
-                f"{timestamp}_rews_plan.pdf"))
+    # plt.plot(rews_plan)
+    # plt.savefig(os.path.join(dial_config.output_dir,
+    #             f"{timestamp}_rews_plan.pdf"))
 
     # host webpage with flask
     print("Processing rollout for visualization")
