@@ -20,7 +20,7 @@ import brax.envs as brax_envs
 from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
 from dial_mpc.envs.unitree_h1_env import UnitreeH1WalkEnv, UnitreeH1WalkEnvConfig
 import dial_mpc.envs as dial_envs
-from dial_mpc.utils.io_utils import get_example_path
+from dial_mpc.utils.io_utils import get_example_path, load_dataclass_from_dict
 
 plt.style.use("science")
 
@@ -218,33 +218,30 @@ def main():
     else:
         config_dict = yaml.safe_load(open(args.config))
 
-    arg_keys = DialConfig.__dataclass_fields__.keys() & config_dict.keys()
-    arg_dict = {k: config_dict[k] for k in arg_keys}
-    args = DialConfig(**arg_dict)
-    rng = jax.random.PRNGKey(seed=args.seed)
+    dial_config = load_dataclass_from_dict(DialConfig, config_dict)
+    rng = jax.random.PRNGKey(seed=dial_config.seed)
 
     # find env config
-    env_config = dial_envs.get_config(args.env_name)
-    env_config_keys = env_config.__dataclass_fields__.keys() & config_dict.keys()
-    env_config_dict = {k: config_dict[k] for k in env_config_keys}
+    env_config_type = dial_envs.get_config(dial_config.env_name)
+    env_config = load_dataclass_from_dict(env_config_type, config_dict)
 
     print("Creating environment")
     env = brax_envs.get_environment(
-        args.env_name, config=env_config(**env_config_dict))
+        dial_config.env_name, config=env_config)
     reset_env = jax.jit(env.reset)
     step_env = jax.jit(env.step)
-    mbdpi = MBDPI(args, env)
+    mbdpi = MBDPI(dial_config, env)
 
     rng, rng_reset = jax.random.split(rng)
     state_init = reset_env(rng_reset)
 
-    YN = jnp.zeros([args.Hnode + 1, mbdpi.nu])
+    YN = jnp.zeros([dial_config.Hnode + 1, mbdpi.nu])
 
     rng_exp, rng = jax.random.split(rng)
     # Y0 = mbdpi.reverse(state_init, YN, rng_exp)
     Y0 = YN
 
-    Nstep = args.n_steps
+    Nstep = dial_config.n_steps
     rews = []
     rews_plan = []
     rollout = []
@@ -261,15 +258,15 @@ def main():
             # update Y0
             Y0 = mbdpi.shift(Y0)
 
-            n_diffuse = args.Ndiffuse
+            n_diffuse = dial_config.Ndiffuse
             if t == 0:
-                n_diffuse = args.Ndiffuse_init
+                n_diffuse = dial_config.Ndiffuse_init
                 print("Performing JIT on DIAL-MPC")
 
             t0 = time.time()
             for i in range(n_diffuse):
                 rng, Y0, info = mbdpi.reverse_once(
-                    state, rng, Y0, mbdpi.sigma_control*(args.traj_diffuse_factor**i))
+                    state, rng, Y0, mbdpi.sigma_control*(dial_config.traj_diffuse_factor**i))
             rews_plan.append(info["rews"].mean())
             freq = 1 / (time.time() - t0)
             pbar.set_postfix(
@@ -283,14 +280,15 @@ def main():
     # jnp.save("./results/us.npy", us)
 
     # create result dir if not exist
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
+    if not os.path.exists(dial_config.output_dir):
+        os.makedirs(dial_config.output_dir)
 
     timestamp = time.strftime("%Y%m%d-%H%M%S")
 
     # plot rews_plan
     plt.plot(rews_plan)
-    plt.savefig(os.path.join(args.output_dir, f"{timestamp}_rews_plan.pdf"))
+    plt.savefig(os.path.join(dial_config.output_dir,
+                f"{timestamp}_rews_plan.pdf"))
 
     # host webpage with flask
     print("Processing rollout for visualization")
@@ -301,7 +299,7 @@ def main():
         {"opt.timestep": env.dt}), rollout, 1080, True)
 
     # save the html file
-    with open(os.path.join(args.output_dir, f"{timestamp}_brax_visualization.html"), "w") as f:
+    with open(os.path.join(dial_config.output_dir, f"{timestamp}_brax_visualization.html"), "w") as f:
         f.write(webpage)
 
     @app.route("/")
