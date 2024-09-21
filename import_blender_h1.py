@@ -12,27 +12,26 @@ from mathutils import Quaternion, Matrix, Vector, Euler
 import time
 
 link_mapper = [
-    "base",
-    # "FR_foot_target",
-    "FR_hip",
-    "FR_thigh",
-    "FR_calf",
-    # "FR_foot",
-    # "FL_foot_target",
-    "FL_hip",
-    "FL_thigh",
-    "FL_calf",
-    # "FL_foot",
-    # "RR_foot_target",
-    "RR_hip",
-    "RR_thigh",
-    "RR_calf",
-    # "RR_foot",
-    # "RL_foot_target",
-    "RL_hip",
-    "RL_thigh",
-    "RL_calf",
-    # "RL_foot",
+    "pelvis",
+    "left_hip_yaw_link", 
+    "left_hip_roll_link",
+    "left_hip_pitch_link",
+    "left_knee_link",
+    "left_ankle_link",
+    "right_hip_yaw_link",
+    "right_hip_roll_link",
+    "right_hip_pitch_link",
+    "right_knee_link",
+    "right_ankle_link",
+    "torso_link",
+    "left_shoulder_pitch_link",
+    "left_shoulder_roll_link",
+    "left_shoulder_yaw_link",
+    "left_elbow_link",
+    "right_shoulder_pitch_link",
+    "right_shoulder_roll_link",
+    "right_shoulder_yaw_link",
+    "right_elbow_link",
 ]
 
 
@@ -45,18 +44,8 @@ def import_animation():
     Hdownsample = 3 # frame downsample rate
 
     exp_idx = 0
-    exp_name = [
-        "dial_real_jump",
-        "dial_real_run",
-        "dial_sim_gallop",
-        "dial_sim_trot",
-    ][exp_idx]
-    Hrender_start, Hrender_end = [
-        [450, 1850],
-        [150, 1600],
-        [550, 1200],
-        [550, 1200],
-    ][exp_idx]
+    exp_name = "h1_data_jogging"
+    Hrender_start, Hrender_end = [0, 310]
     Hrender = Hrender_end - Hrender_start
 
     file_prefix = r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data"
@@ -101,7 +90,7 @@ def import_animation():
             # blender's quaternion constructor is in wxyz format
             # insert quaternion keyframe, applying transform
             blender_obj.rotation_quaternion = (
-                Quaternion((quat[3], quat[0], quat[1], quat[2])) @ yup_to_zup
+                Quaternion((quat[3], quat[0], quat[1], quat[2])) #@ yup_to_zup
             )
             blender_obj.keyframe_insert("rotation_quaternion", frame=frame_idx)
 
@@ -113,9 +102,9 @@ def import_animation():
     # generate trajectory to visualize
     # TODO: replace it with the actual trajectory
     xssss_torso = np.zeros((Hrender, Ndiffuse, Nsample, Hsample, 3)) 
-    xssss_feet = np.zeros((Hrender, Ndiffuse, Nsample, Hsample, 4, 3))
+    xssss_feet = np.zeros((Hrender, Ndiffuse, Nsample, Hsample, 2, 3))
     for i in range(Hrender):
-        xs_torso_ref = link_pos_original[i + Hrender_start : i + Hrender_start + Hsample, 0]+ np.array([0.35, 0.0, 0.0])
+        xs_torso_ref = link_pos_original[i + Hrender_start : i + Hrender_start + Hsample, 0]+ np.array([0.1, 0.0, 0.0])
         xs_feet_ref = xsite_feet_original[i + Hrender_start : i + Hrender_start + Hsample]
         for j in range(Ndiffuse):
             sigma = 0.1 * (0.5**j)
@@ -123,7 +112,7 @@ def import_animation():
                 xs_torso_ref + np.random.randn(Nsample, Hsample, 3) * sigma
             )
             xssss_feet[i, j] = (
-                xs_feet_ref + np.random.randn(Nsample, Hsample, 4, 3) * sigma
+                xs_feet_ref + np.random.randn(Nsample, Hsample, 2, 3) * sigma
             )
             # go through low-pass filter
             alpha = 0.2
@@ -155,8 +144,8 @@ def import_animation():
             principled_bsdf.inputs["Base Color"].default_value = color
             # principled_bsdf.inputs['Emission'].default_value = color  # Emission color (optional)
         for j in range(Nsample):
-            Ntraj = 5
-            traj_names = ["torso", "FL_foot", "FR_foot", "RL_foot", "RR_foot"]
+            Ntraj = 3
+            traj_names = ["torso", "left_foot_site", "right_foot_site"]
             for k, traj_name in enumerate(traj_names):
                 # Create a new curve data-block
                 curve_data = bpy.data.curves.new(
@@ -190,14 +179,10 @@ def import_animation():
                 # Initialize the spline points with the first frame data
                 if traj_name == "torso":
                     traj = xssss_torso[:, i, j]
-                elif traj_name == "FL_foot":
+                elif traj_name == "left_foot_site":
                     traj = xssss_feet[:, i, j, :, 0]
-                elif traj_name == "FR_foot":
+                elif traj_name == "right_foot_site":
                     traj = xssss_feet[:, i, j, :, 1]
-                elif traj_name == "RL_foot":
-                    traj = xssss_feet[:, i, j, :, 2]
-                elif traj_name == "RR_foot":
-                    traj = xssss_feet[:, i, j, :, 3]
                 for p in range(Hsample):
                     if p % Ndownsample != 0:
                         continue
@@ -240,7 +225,6 @@ def import_animation():
                             continue
                         x, y, z = traj[frame, k]
                         spline.points[k//Ndownsample].co = (x, y, z, 1)
-                        
 
 
                         # Insert keyframe for the point

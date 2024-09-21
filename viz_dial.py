@@ -52,11 +52,12 @@ def import_animation():
         "dial_sim_trot",
     ][exp_idx]
     Hrender_start, Hrender_end = [
-        [450, 1850],
+        [1090, 1091],
         [150, 1600],
         [550, 1200],
         [550, 1200],
     ][exp_idx]
+    Nviz = 200
     Hrender = Hrender_end - Hrender_start
 
     file_prefix = r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data"
@@ -93,6 +94,9 @@ def import_animation():
             continue
         blender_obj = bpy.data.objects[link_name]
         for frame_idx, (pos, quat) in enumerate(zip(link_pos_traj[Hrender_start:Hrender_end], link_quat_traj[Hrender_start:Hrender_end])):
+            print(f"Importing {link_name} at frame {frame_idx}...")
+            print(f"Position: {pos}")
+            print(f"Quaternion: {quat}")
             # insert position keyframe
             blender_obj.location = pos
             blender_obj.keyframe_insert("location", frame=frame_idx)
@@ -160,7 +164,7 @@ def import_animation():
             for k, traj_name in enumerate(traj_names):
                 # Create a new curve data-block
                 curve_data = bpy.data.curves.new(
-                    name=f"{traj_name}_diffuse{i}_sample{j}", type="CURVE"
+                    name=f"{i}_{traj_name}_diffuse{i}_sample{j}", type="CURVE"
                 )
                 delta_t = time.time() - t0
                 total_exp = Ndiffuse*Nsample*Ntraj
@@ -171,80 +175,100 @@ def import_animation():
                 print(f"Creating {traj_name}_diffuse{i}_sample{j}...")
                 curve_data.dimensions = "3D"
 
-                # Adjust the bevel depth to make the curve thicker
-                curve_data.bevel_depth = (
-                    0.002  # Adjust this value for desired thickness
-                )
-                curve_data.fill_mode = "FULL"  # Ensures the curve is fully filled
+                if i == 0:
+                    # Adjust the bevel depth to make the curve thicker
+                    curve_data.bevel_depth = (
+                        0.002  # Adjust this value for desired thickness
+                    )
+                    curve_data.fill_mode = "FULL"  # Ensures the curve is fully filled
 
-                # Create a new basal spline in that curve
-                spline = curve_data.splines.new(type="NURBS")
-                if Hsample % Ndownsample == 0:
-                    spline.points.add(Hsample//Ndownsample)  # Add points (minus the default point)
-                else:
-                    spline.points.add(Hsample//Ndownsample-1)  # Add points (minus the default point)
-                spline.use_cyclic_u = False  # Ensure the spline is not cyclic
-                spline.order_u = 4  # Order can be between 2 and 6
-                spline.resolution_u = 12  # Increase for smoother curves
+                    # Create a new basal spline in that curve
+                    spline = curve_data.splines.new(type="NURBS")
+                    if Hsample % Ndownsample == 0:
+                        spline.points.add(Hsample//Ndownsample)  # Add points (minus the default point)
+                    else:
+                        spline.points.add(Hsample//Ndownsample-1)  # Add points (minus the default point)
+                    spline.use_cyclic_u = False  # Ensure the spline is not cyclic
+                    spline.order_u = 4  # Order can be between 2 and 6
+                    spline.resolution_u = 12  # Increase for smoother curves
 
-                # Initialize the spline points with the first frame data
-                if traj_name == "torso":
-                    traj = xssss_torso[:, i, j]
-                elif traj_name == "FL_foot":
-                    traj = xssss_feet[:, i, j, :, 0]
-                elif traj_name == "FR_foot":
-                    traj = xssss_feet[:, i, j, :, 1]
-                elif traj_name == "RL_foot":
-                    traj = xssss_feet[:, i, j, :, 2]
-                elif traj_name == "RR_foot":
-                    traj = xssss_feet[:, i, j, :, 3]
-                for p in range(Hsample):
-                    if p % Ndownsample != 0:
-                        continue
-                    x, y, z = traj[0, p]
-                    spline.points[p//Ndownsample].co = (x, y, z, 1)  
-
-
-
+                    # Initialize the spline points with the first frame data
+                    if traj_name == "torso":
+                        traj = xssss_torso[:, i, j]
+                    elif traj_name == "FL_foot":
+                        traj = xssss_feet[:, i, j, :, 0]
+                    elif traj_name == "FR_foot":
+                        traj = xssss_feet[:, i, j, :, 1]
+                    elif traj_name == "RL_foot":
+                        traj = xssss_feet[:, i, j, :, 2]
+                    elif traj_name == "RR_foot":
+                        traj = xssss_feet[:, i, j, :, 3]
+                    for p in range(Hsample):
+                        if p % Ndownsample != 0:
+                            continue
+                        x, y, z = traj[0, p]
+                        spline.points[p//Ndownsample].co = (x, y, z, 1)  
 
 
-                # Set the order of the NURBS spline (degree + 1)
-                # spline.order_u = min(4, Hsample)  # Order cannot exceed number of points
-                # spline.use_endpoint_u = True
 
 
-                # Create a new object with the curve data
-                curve_object = bpy.data.objects.new(
-                    f"{traj_name}_diffuse{i}_sample{j}", curve_data
-                )
+
+                    # Set the order of the NURBS spline (degree + 1)
+                    # spline.order_u = min(4, Hsample)  # Order cannot exceed number of points
+                    # spline.use_endpoint_u = True
 
 
-                # Link the object to the current collection
-                bpy.context.collection.objects.link(curve_object)
+                    # Create a new object with the curve data
+                    curve_object = bpy.data.objects.new(
+                        f"{traj_name}_diffuse{i}_sample{j}", curve_data
+                    )
 
-                # Assign the material to the curve object
-                if curve_object.data.materials:
-                    # Assign to first material slot
-                    curve_object.data.materials[0] = material
-                else:
-                    # Create a new material slot and assign
-                    curve_object.data.materials.append(material)
+
+                    # Link the object to the current collection
+                    bpy.context.collection.objects.link(curve_object)
+
+                    # Assign the material to the curve object
+                    if curve_object.data.materials:
+                        # Assign to first material slot
+                        curve_object.data.materials[0] = material
+                    else:
+                        # Create a new material slot and assign
+                        curve_object.data.materials.append(material)
+
 
                 # Animate the curve by modifying control points over time
-                for frame in range(Hrender):
-                    if frame % Hdownsample != 0:
-                        continue
+                Nviz0 = Nviz // Ndiffuse
+                for frame in range(Nviz0*i, Nviz0*(i+1)):
                     bpy.context.scene.frame_set(frame)
+                    # update color and set to keyframe
+                    material.diffuse_color = color
+                    material.keyframe_insert("diffuse_color", frame=frame)
                     for k in range(Hsample):
                         if k % Ndownsample != 0:
                             continue
-                        x, y, z = traj[frame, k]
-                        spline.points[k//Ndownsample].co = (x, y, z, 1)
-                        
-
+                        if traj_name == "FL_foot":
+                            xyz = xsite_feet_original[Hrender_start + k, 0]
+                        elif traj_name == "FR_foot":
+                            xyz = xsite_feet_original[Hrender_start + k, 1]
+                        elif traj_name == "RL_foot":
+                            xyz = xsite_feet_original[Hrender_start + k, 2]
+                        elif traj_name == "RR_foot":
+                            xyz = xsite_feet_original[Hrender_start + k, 3]
+                        elif traj_name == "torso":
+                            xyz = link_pos_original[Hrender_start + k, 0] + np.array([0.35, 0.0, 0.0])
+                        xyz = xyz + np.clip(np.random.randn(3) * 0.1 * (0.5 ** i), -10.0, 0.01)
+                        spline.points[k//Ndownsample].co = (xyz[0], xyz[1], xyz[2], 1)
 
                         # Insert keyframe for the point
                         spline.points[k//Ndownsample].keyframe_insert(data_path="co", frame=frame)
+
+                        # set visibility (hide viewpoint and render) and set to keyframe
+                        # visible_group_idx_start = Nviz // Ndiffuse
+                        # visible_group_idx_end = visible_group_idx_start + 1
+                        # if frame >= visible_group_idx_start and frame < visible_group_idx_end:
+                        #     spline
+
+
 
 
 
