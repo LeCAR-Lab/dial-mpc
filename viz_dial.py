@@ -40,7 +40,7 @@ def import_animation():
     dt = 0.02
     Hsample = 80
     Nsample = 8
-    Ndiffuse = 4
+    Ndiffuse = 6
     Ndownsample = 10 # trajectory downsample rate
     Hdownsample = 3 # frame downsample rate
 
@@ -57,7 +57,7 @@ def import_animation():
         [550, 1200],
         [550, 1200],
     ][exp_idx]
-    Nviz = 200
+    Nviz = 25
     Hrender = Hrender_end - Hrender_start
 
     file_prefix = r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data"
@@ -138,25 +138,27 @@ def import_animation():
     # visualize the trajectory
     t0 = time.time()
     for i in range(Ndiffuse):
+        if i > 0:
+            continue
 
         # create material according to Ndiffuse (i=0, it is light red, i=Ndiffuse-1, it is dark red)
         # Create a new material and assign a color
-        material = bpy.data.materials.new(name=f"diffuse_material_{i}")
+        material = bpy.data.materials.new(name=f"diffuse_material")
         k = i / (Ndiffuse - 1)
+
         # color from light red to dark red
+
         red = np.array([1, 0, 0, 1.0])
         white = np.array([1, 1, 1, 0.1])
         color = (1-k) * white + k * red
         material.diffuse_color = color  # RGBA values
 
-
-
         # Enable 'Use Nodes' to access material nodes
-        material.use_nodes = True
-        nodes = material.node_tree.nodes
-        principled_bsdf = nodes.get("Principled BSDF")
-        if principled_bsdf:
-            principled_bsdf.inputs["Base Color"].default_value = color
+        # material.use_nodes = True
+        # nodes = material.node_tree.nodes
+        # principled_bsdf = nodes.get("Principled BSDF")
+        # if principled_bsdf:
+        #     principled_bsdf.inputs["Base Color"].default_value = color
             # principled_bsdf.inputs['Emission'].default_value = color  # Emission color (optional)
         for j in range(Nsample):
             Ntraj = 5
@@ -175,7 +177,6 @@ def import_animation():
                 print(f"Creating {traj_name}_diffuse{i}_sample{j}...")
                 curve_data.dimensions = "3D"
 
-                if i == 0:
                 # Adjust the bevel depth to make the curve thicker
                 curve_data.bevel_depth = (
                     0.002  # Adjust this value for desired thickness
@@ -236,7 +237,7 @@ def import_animation():
                     curve_object.data.materials.append(material)
 
                 # Animate the curve by modifying control points over time
-                for frame in range(Nviz):
+                for frame in range(Nviz * Ndiffuse):
                     bpy.context.scene.frame_set(frame)
                     for k in range(Hsample):
                         if k % Ndownsample != 0:
@@ -251,18 +252,27 @@ def import_animation():
                             xyz = xsite_feet_original[Hrender_start + k, 3]
                         elif traj_name == "torso":
                             xyz = link_pos_original[Hrender_start + k, 0] + np.array([0.35, 0.0, 0.0])
-                        xyz = xyz + np.clip(np.random.randn(3) * 0.1 * (0.5 ** i), -10.0, 0.01)
+                        i_diffuse = frame // Nviz
+                        diffuse_scale= (0.5 ** i_diffuse)
+                        step_scale = 10.0 * (0.8**((Hsample-k)//Ndownsample))
+                        scale = np.clip(diffuse_scale * step_scale, 0.0, 3.0)
+                        xyz = xyz + np.clip(np.random.randn(3) * 0.1 * scale, -10.0, 0.01)
                         spline.points[k//Ndownsample].co = (xyz[0], xyz[1], xyz[2], 1)
 
                         # Insert keyframe for the point
                         spline.points[k//Ndownsample].keyframe_insert(data_path="co", frame=frame)
 
-                        # set visibility (hide viewpoint and render) and set to keyframe
-                        # visible_group_idx_start = Nviz // Ndiffuse
-                        # visible_group_idx_end = visible_group_idx_start + 1
-                        # if frame >= visible_group_idx_start and frame < visible_group_idx_end:
-                        #     spline
+                        # update color every Ndiffuse keyframes
+                        if frame % Ndiffuse == 0:
+                            # set color key frame
+                            i_diffuse = frame // Nviz
+                            k = i_diffuse / (Ndiffuse - 1)
+                            color = (1-k) * white + k * red
+                            material.diffuse_color = color
+                            material.keyframe_insert("diffuse_color", frame=frame)
 
+
+                            
 
 
 
