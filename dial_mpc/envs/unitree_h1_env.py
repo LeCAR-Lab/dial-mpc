@@ -18,7 +18,7 @@ import mujoco
 from mujoco import mjx
 
 from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
-from dial_mpc.utils.function_utils import global_to_body_velocity
+from dial_mpc.utils.function_utils import global_to_body_velocity, get_foot_step
 from dial_mpc.utils.io_utils import get_model_path
 import dial_mpc.envs as dial_envs
 
@@ -123,27 +123,6 @@ class UnitreeH1WalkEnv(BaseEnv):
         sys = sys.tree_replace({"opt.timestep": config.timestep})
         return sys
 
-    def get_foot_step(self, time):
-        def step_height(t, footphase, duty_ratio):
-            angle = (t + jnp.pi - footphase) % (2 * jnp.pi) - jnp.pi
-            angle = jnp.where(duty_ratio < 1, angle *
-                              0.5 / (1 - duty_ratio), angle)
-            clipped_angle = jnp.clip(angle, -jnp.pi / 2, jnp.pi / 2)
-            value = jnp.where(duty_ratio < 1, jnp.cos(clipped_angle), 0)
-            final_value = jnp.where(
-                jnp.abs(value) >= 1e-6, jnp.abs(value), 0.0)
-            return final_value
-
-        amplitude = self._gait_params[self._gait][2]
-        cadence = self._gait_params[self._gait][1]
-        duty_ratio = self._gait_params[self._gait][0]
-        h_steps = amplitude * jax.vmap(step_height, in_axes=(None, 0, None))(
-            time * 2 * jnp.pi * cadence + jnp.pi,
-            2 * jnp.pi * self._gait_phase[self._gait],
-            duty_ratio,
-        )
-        return h_steps
-
     def reset(self, rng: jax.Array) -> State:
         rng, key = jax.random.split(rng)
 
@@ -230,7 +209,9 @@ class UnitreeH1WalkEnv(BaseEnv):
         # reward
         # gaits reward
         # z_feet = pipeline_state.site_xpos[self._feet_site_id][:, 2]
-        z_feet_tar = self.get_foot_step(state.info["step"] * self.dt)
+        amplitude, cadence, duty_ratio = self._gait_params[self._gait]
+        phases = self._gait_phase[self._gait]
+        z_feet_tar = get_foot_step(amplitude, cadence, duty_ratio, phases, state.info["step"] * self.dt)
         # reward_gaits = -jnp.sum(((z_feet_tar - z_feet)) ** 2)
         z_feet = jnp.array([jnp.min(pipeline_state.contact.dist[:2]), jnp.min(
             pipeline_state.contact.dist[2:])])
