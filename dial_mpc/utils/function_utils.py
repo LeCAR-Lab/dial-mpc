@@ -15,6 +15,7 @@ def body_to_global_velocity(v, q):
     return math.rotate(v, q)
 
 
+@jax.jit
 def get_foot_step(amplitude, cadence, duty_ratio, phases, time):
     """
     Compute the foot step height.

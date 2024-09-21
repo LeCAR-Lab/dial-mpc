@@ -30,7 +30,7 @@ class UnitreeH1WalkEnvConfig(BaseEnvConfig):
         200.0, 60.0,  # left knee, ankle
         200.0, 200.0, 200.0,  # right hips
         200.0, 60.0,  # right knee, ankle
-        200.0,  # torso
+            200.0,  # torso
         60.0, 60.0, 60.0, 60.0,  # left shoulder, elbow
         60.0, 60.0, 60.0, 60.0,  # right shoulder, elbow
     ])
@@ -39,7 +39,7 @@ class UnitreeH1WalkEnvConfig(BaseEnvConfig):
         5.0, 1.5,  # left knee, ankle
         5.0, 5.0, 5.0,  # right hips
         5.0, 1.5,  # right knee, ankle
-        5.0,  # torso
+            5.0,  # torso
         1.5, 1.5, 1.5, 1.5,  # left shoulder, elbow
         1.5, 1.5, 1.5, 1.5,  # right shoulder, elbow
     ])
@@ -86,41 +86,35 @@ class UnitreeH1WalkEnv(BaseEnv):
         }
 
         # joint limits and initial pose
-        self._physical_joint_range = self.sys.jnt_range[1:]
-        self._joint_torque_range = self.sys.actuator_ctrlrange
         self._init_q = jnp.array(self.sys.mj_model.keyframe("home").qpos)
         self._default_pose = self.sys.mj_model.keyframe("home").qpos[7:]
         # joint sampling range
         self._joint_range = jnp.array([
-            [-0.3, 0.3],
-            [-0.3, 0.3],
-            [-1.0, 1.0],
-            [0.0, 1.74],
-            [-0.6, 0.4],
+                [-0.3, 0.3],
+                [-0.3, 0.3],
+                [-1.0, 1.0],
+                [0.0, 1.74],
+                [-0.6, 0.4],
 
-            [-0.3, 0.3],
-            [-0.3, 0.3],
-            [-1.0, 1.0],
-            [0.0, 1.74],
-            [-0.6, 0.4],
+                [-0.3, 0.3],
+                [-0.3, 0.3],
+                [-1.0, 1.0],
+                [0.0, 1.74],
+                [-0.6, 0.4],
 
-            [-0.5, 0.5],
+                [-0.5, 0.5],
 
-            [-0.78, 0.78],
-            [-0.3, 0.3],
-            [-0.3, 0.3],
-            [-0.3, 0.3],
+                [-0.78, 0.78],
+                [-0.3, 0.3],
+                [-0.3, 0.3],
+                [-0.3, 0.3],
 
-            [-0.78, 0.78],
-            [-0.3, 0.3],
-            [-0.3, 0.3],
-            [-0.3, 0.3],
+                [-0.78, 0.78],
+                [-0.3, 0.3],
+                [-0.3, 0.3],
+                [-0.3, 0.3],
         ])
         # self._joint_range = self._physical_joint_range
-
-        # number of everything
-        self._nv = self.sys.nv
-        self._nq = self.sys.nq
 
     def make_system(self, config: UnitreeH1WalkEnvConfig) -> System:
         model_path = get_model_path("unitree_h1", "mjx_scene_h1_walk.xml")
@@ -152,35 +146,6 @@ class UnitreeH1WalkEnv(BaseEnv):
         metrics = {}
         state = State(pipeline_state, obs, reward, done, metrics, state_info)
         return state
-
-    @partial(jax.jit, static_argnums=(0,))
-    def act2joint(self, act: jax.Array) -> jax.Array:
-        act_normalized = (
-            act * self._config.action_scale + 1.0
-        ) / 2.0  # normalize to [0, 1]
-        joint_targets = self._joint_range[:, 0] + act_normalized * (
-            self._joint_range[:, 1] - self._joint_range[:, 0]
-        )  # scale to joint range
-        joint_targets = jnp.clip(
-            joint_targets,
-            self._physical_joint_range[:, 0],
-            self._physical_joint_range[:, 1],
-        )
-        return joint_targets
-
-    @partial(jax.jit, static_argnums=(0,))
-    def act2tau(self, act: jax.Array, pipline_state) -> jax.Array:
-        joint_target = self.act2joint(act)
-
-        q = pipline_state.qpos[7:]
-        qd = pipline_state.qvel[6:]
-        q_err = joint_target - q
-        tau = self._config.kp * q_err - self._config.kd * qd
-
-        tau = jnp.clip(
-            tau, self._joint_torque_range[:, 0], self._joint_torque_range[:, 1]
-        )
-        return tau
 
     def step(
         self, state: State, action: jax.Array
