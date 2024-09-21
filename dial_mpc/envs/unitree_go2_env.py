@@ -32,6 +32,7 @@ class UnitreeGo2EnvConfig(BaseEnvConfig):
     ramp_up_time: float = 2.0
     gait: str = "jog"
 
+
 class UnitreeGo2Env(BaseEnv):
     def __init__(self, config: UnitreeGo2EnvConfig):
         super().__init__(config)
@@ -62,23 +63,22 @@ class UnitreeGo2Env(BaseEnv):
         self._init_q = jnp.array(self.sys.mj_model.keyframe("home").qpos)
         self._default_pose = self.sys.mj_model.keyframe("home").qpos[7:]
 
-        self.joint_range = jnp.array([
-            [-0.5, 0.5],
-            [0.4, 1.4],
-            [-2.3, -0.85],
-
-            [-0.5, 0.5],
-            [0.4, 1.4],
-            [-2.3, -0.85],
-
-            [-0.5, 0.5],
-            [0.4, 1.4],
-            [-2.3, -1.3],
-
-            [-0.5, 0.5],
-            [0.4, 1.4],
-            [-2.3, -1.3],
-        ])
+        self.joint_range = jnp.array(
+            [
+                [-0.5, 0.5],
+                [0.4, 1.4],
+                [-2.3, -0.85],
+                [-0.5, 0.5],
+                [0.4, 1.4],
+                [-2.3, -0.85],
+                [-0.5, 0.5],
+                [0.4, 1.4],
+                [-2.3, -1.3],
+                [-0.5, 0.5],
+                [0.4, 1.4],
+                [-2.3, -1.3],
+            ]
+        )
         feet_site = [
             "FL_foot",
             "FR_foot",
@@ -120,14 +120,10 @@ class UnitreeGo2Env(BaseEnv):
         obs = self._get_obs(pipeline_state, state_info)
         reward, done = jnp.zeros(2)
         metrics = {}
-        state = State(
-            pipeline_state, obs, reward, done, metrics, state_info
-        )
+        state = State(pipeline_state, obs, reward, done, metrics, state_info)
         return state
 
-    def step(
-        self, state: State, action: jax.Array
-    ) -> State:
+    def step(self, state: State, action: jax.Array) -> State:
         rng, cmd_rng = jax.random.split(state.info["rng"], 2)
 
         # physics step
@@ -148,10 +144,14 @@ class UnitreeGo2Env(BaseEnv):
                 jnp.array([self._config.default_vx, self._config.default_vy, 0.0]),
                 jnp.array([0.0, 0.0, self._config.default_vyaw]),
             )
+
         def randomize():
             return self.sample_command(cmd_rng)
+
         vel_tar, ang_vel_tar = jax.lax.cond(
-            (state.info["randomize_target"]) & (state.info["step"] % 500 == 0), randomize, dont_randomize
+            (state.info["randomize_target"]) & (state.info["step"] % 500 == 0),
+            randomize,
+            dont_randomize,
         )
         state.info["vel_tar"] = jnp.minimum(
             vel_tar * state.info["step"] * self.dt / self._config.ramp_up_time, vel_tar
@@ -171,16 +171,20 @@ class UnitreeGo2Env(BaseEnv):
         )
         reward_gaits = -jnp.sum(((z_feet_tar - z_feet) / 0.05) ** 2)
         # foot contact data based on z-position
-        foot_pos = pipeline_state.site_xpos[self._feet_site_id]  # pytype: disable=attribute-error
+        foot_pos = pipeline_state.site_xpos[
+            self._feet_site_id
+        ]  # pytype: disable=attribute-error
         foot_contact_z = foot_pos[:, 2] - self._foot_radius
         contact = foot_contact_z < 1e-3  # a mm or less off the floor
-        contact_filt_mm = contact | state.info['last_contact']
-        contact_filt_cm = (foot_contact_z < 3e-2) | state.info['last_contact']
-        first_contact = (state.info['feet_air_time'] > 0) * contact_filt_mm
-        state.info['feet_air_time'] += self.dt
-        reward_air_time = jnp.sum((state.info['feet_air_time'] - 0.1) * first_contact)
+        contact_filt_mm = contact | state.info["last_contact"]
+        contact_filt_cm = (foot_contact_z < 3e-2) | state.info["last_contact"]
+        first_contact = (state.info["feet_air_time"] > 0) * contact_filt_mm
+        state.info["feet_air_time"] += self.dt
+        reward_air_time = jnp.sum((state.info["feet_air_time"] - 0.1) * first_contact)
         # position reward
-        pos_tar = state.info["pos_tar"] + state.info["vel_tar"] * self.dt * state.info["step"]
+        pos_tar = (
+            state.info["pos_tar"] + state.info["vel_tar"] * self.dt * state.info["step"]
+        )
         pos = x.pos[self._torso_idx - 1]
         R = math.quat_to_3x3(x.rot[self._torso_idx - 1])
         head_vec = jnp.array([0.285, 0.0, 0.0])
@@ -191,7 +195,10 @@ class UnitreeGo2Env(BaseEnv):
         vec = math.rotate(vec_tar, x.rot[0])
         reward_upright = -jnp.sum(jnp.square(vec - vec_tar))
         # yaw orientation reward
-        yaw_tar = state.info["yaw_tar"] + state.info["ang_vel_tar"][2] * self.dt * state.info["step"]
+        yaw_tar = (
+            state.info["yaw_tar"]
+            + state.info["ang_vel_tar"][2] * self.dt * state.info["step"]
+        )
         yaw = math.quat_to_euler(x.rot[self._torso_idx - 1])[2]
         d_yaw = yaw - yaw_tar
         reward_yaw = -jnp.square(jnp.atan2(jnp.sin(d_yaw), jnp.cos(d_yaw)))
@@ -207,9 +214,13 @@ class UnitreeGo2Env(BaseEnv):
         reward_vel = -jnp.sum((vb[:2] - state.info["vel_tar"][:2]) ** 2)
         reward_ang_vel = -jnp.sum((ab[2] - state.info["ang_vel_tar"][2]) ** 2)
         # height reward
-        reward_height = -jnp.sum((x.pos[self._torso_idx - 1, 2] - state.info["pos_tar"][2]) ** 2)
+        reward_height = -jnp.sum(
+            (x.pos[self._torso_idx - 1, 2] - state.info["pos_tar"][2]) ** 2
+        )
         # energy reward
-        reward_energy = -jnp.sum(jnp.maximum(ctrl * pipeline_state.qvel[6:] / 160.0, 0.0) ** 2)
+        reward_energy = -jnp.sum(
+            jnp.maximum(ctrl * pipeline_state.qvel[6:] / 160.0, 0.0) ** 2
+        )
         # stay alive reward
         reward_alive = 1.0 - state.done
         # reward
@@ -241,14 +252,14 @@ class UnitreeGo2Env(BaseEnv):
         state.info["rng"] = rng
         state.info["z_feet"] = z_feet
         state.info["z_feet_tar"] = z_feet_tar
-        state.info['feet_air_time'] *= ~contact_filt_mm
-        state.info['last_contact'] = contact
+        state.info["feet_air_time"] *= ~contact_filt_mm
+        state.info["last_contact"] = contact
 
         state = state.replace(
             pipeline_state=pipeline_state, obs=obs, reward=reward, done=done
         )
         return state
-    
+
     def _get_obs(
         self,
         pipeline_state: base.State,
@@ -273,7 +284,7 @@ class UnitreeGo2Env(BaseEnv):
             ]
         )
         return obs
-    
+
     def render(
         self,
         trajectory: List[base.State],
@@ -283,7 +294,7 @@ class UnitreeGo2Env(BaseEnv):
     ) -> Sequence[np.ndarray]:
         camera = camera or "track"
         return super().render(trajectory, camera=camera, width=width, height=height)
-    
+
     def sample_command(self, rng: jax.Array) -> tuple[jax.Array, jax.Array]:
         lin_vel_x = [-1.5, 1.5]  # min max [m/s]
         lin_vel_y = [-0.5, 0.5]  # min max [m/s]
@@ -302,5 +313,6 @@ class UnitreeGo2Env(BaseEnv):
         new_lin_vel_cmd = jnp.array([lin_vel_x[0], lin_vel_y[0], 0.0])
         new_ang_vel_cmd = jnp.array([0.0, 0.0, ang_vel_yaw[0]])
         return new_lin_vel_cmd, new_ang_vel_cmd
-    
+
+
 brax_envs.register_environment("unitree_go2_walk", UnitreeGo2Env)
