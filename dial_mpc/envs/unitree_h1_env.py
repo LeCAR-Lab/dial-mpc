@@ -20,7 +20,6 @@ from mujoco import mjx
 from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
 from dial_mpc.utils.function_utils import global_to_body_velocity, get_foot_step
 from dial_mpc.utils.io_utils import get_model_path
-import dial_mpc.envs as dial_envs
 
 
 @dataclass
@@ -89,32 +88,32 @@ class UnitreeH1WalkEnv(BaseEnv):
         self._init_q = jnp.array(self.sys.mj_model.keyframe("home").qpos)
         self._default_pose = self.sys.mj_model.keyframe("home").qpos[7:]
         # joint sampling range
-        self._joint_range = jnp.array([
-                [-0.3, 0.3],
-                [-0.3, 0.3],
-                [-1.0, 1.0],
-                [0.0, 1.74],
-                [-0.6, 0.4],
+        self.joint_range = jnp.array([
+            [-0.3, 0.3],
+            [-0.3, 0.3],
+            [-1.0, 1.0],
+            [0.0, 1.74],
+            [-0.6, 0.4],
 
-                [-0.3, 0.3],
-                [-0.3, 0.3],
-                [-1.0, 1.0],
-                [0.0, 1.74],
-                [-0.6, 0.4],
+            [-0.3, 0.3],
+            [-0.3, 0.3],
+            [-1.0, 1.0],
+            [0.0, 1.74],
+            [-0.6, 0.4],
 
-                [-0.5, 0.5],
+            [-0.5, 0.5],
 
-                [-0.78, 0.78],
-                [-0.3, 0.3],
-                [-0.3, 0.3],
-                [-0.3, 0.3],
+            [-0.78, 0.78],
+            [-0.3, 0.3],
+            [-0.3, 0.3],
+            [-0.3, 0.3],
 
-                [-0.78, 0.78],
-                [-0.3, 0.3],
-                [-0.3, 0.3],
-                [-0.3, 0.3],
+            [-0.78, 0.78],
+            [-0.3, 0.3],
+            [-0.3, 0.3],
+            [-0.3, 0.3],
         ])
-        # self._joint_range = self._physical_joint_range
+        # self.joint_range = self.physical_joint_range
 
     def make_system(self, config: UnitreeH1WalkEnvConfig) -> System:
         model_path = get_model_path("unitree_h1", "mjx_scene_h1_walk.xml")
@@ -190,10 +189,10 @@ class UnitreeH1WalkEnv(BaseEnv):
         # reward
         # gaits reward
         # z_feet = pipeline_state.site_xpos[self._feet_site_id][:, 2]
-        amplitude, cadence, duty_ratio = self._gait_params[self._gait]
+        duty_ratio, cadence, amplitude = self._gait_params[self._gait]
         phases = self._gait_phase[self._gait]
         z_feet_tar = get_foot_step(
-            amplitude, cadence, duty_ratio, phases, state.info["step"] * self.dt
+            duty_ratio, cadence, amplitude, phases, state.info["step"] * self.dt
         )
         # reward_gaits = -jnp.sum(((z_feet_tar - z_feet)) ** 2)
         z_feet = jnp.array(
@@ -248,7 +247,7 @@ class UnitreeH1WalkEnv(BaseEnv):
         )
         # energy reward
         # reward_energy = -jnp.sum((ctrl * pipeline_state.qvel[6:] / 160.0) ** 2)
-        reward_energy = -jnp.sum((ctrl / self._joint_torque_range[:, 1]) ** 2)
+        reward_energy = -jnp.sum((ctrl / self.joint_torque_range[:, 1]) ** 2)
         # stay alive reward
         reward_alive = 1.0 - state.done
         # reward
@@ -270,8 +269,8 @@ class UnitreeH1WalkEnv(BaseEnv):
         up = jnp.array([0.0, 0.0, 1.0])
         joint_angles = pipeline_state.q[7:]
         done = jnp.dot(math.rotate(up, x.rot[self._torso_idx - 1]), up) < 0
-        done |= jnp.any(joint_angles < self._joint_range[:, 0])
-        done |= jnp.any(joint_angles > self._joint_range[:, 1])
+        done |= jnp.any(joint_angles < self.joint_range[:, 0])
+        done |= jnp.any(joint_angles > self.joint_range[:, 1])
         done |= pipeline_state.x.pos[self._torso_idx - 1, 2] < 0.18
         done = done.astype(jnp.float32)
 

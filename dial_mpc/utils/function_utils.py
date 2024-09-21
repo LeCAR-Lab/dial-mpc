@@ -16,7 +16,7 @@ def body_to_global_velocity(v, q):
 
 
 @jax.jit
-def get_foot_step(amplitude, cadence, duty_ratio, phases, time):
+def get_foot_step(duty_ratio, cadence, amplitude, phases, time):
     """
     Compute the foot step height.
     Args:

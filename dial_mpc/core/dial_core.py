@@ -203,6 +203,7 @@ def main():
 
     examples = [
         "unitree_h1_jog",
+        "unitree_go2_trot",
     ]
 
     if args.list_examples:
