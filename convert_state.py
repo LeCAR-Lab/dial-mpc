@@ -8,7 +8,7 @@ def convert_state():
     # env configs
     Nsample = 1
     Hsample = 5
-    exp_idx = 1
+    exp_idx = 4
     exp_name = [
         "dial_real_jump",
         "dial_real_run",

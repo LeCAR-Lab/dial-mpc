@@ -1,15 +1,17 @@
 import os
 import sys
+
 # check if the system is windows, if so, add the path of blender
 if os.name == "nt":
     packages_path = r"C:\Users\JC-Ba\AppData\Roaming\Python\Python311\Scripts" + r"\\..\\site-packages"
     sys.path.insert(0, packages_path )
-import bpy
 import pickle
-import numpy as np
-import matplotlib as mpl
-from mathutils import Quaternion, Matrix, Vector, Euler
 import time
+
+import bpy
+import matplotlib as mpl
+import numpy as np
+from mathutils import Euler, Matrix, Quaternion, Vector
 
 link_mapper = [
     "base",
@@ -41,8 +43,8 @@ def import_animation():
     Hsample = 80
     Nsample = 8
     Ndiffuse = 4
-    Ndownsample = 10 # trajectory downsample rate
-    Hdownsample = 3 # frame downsample rate
+    Ndownsample = 8 # trajectory downsample rate
+    Hdownsample = 4 # frame downsample rate
 
     exp_idx = 0
     exp_name = [
@@ -50,12 +52,14 @@ def import_animation():
         "dial_real_run",
         "dial_sim_gallop",
         "dial_sim_trot",
+        "dial_sim_climb"
     ][exp_idx]
     Hrender_start, Hrender_end = [
         [450, 1850],
         [150, 1600],
         [550, 1200],
         [550, 1200],
+        [0, 80]
     ][exp_idx]
     Hrender = Hrender_end - Hrender_start
 

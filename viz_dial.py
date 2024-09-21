@@ -176,73 +176,68 @@ def import_animation():
                 curve_data.dimensions = "3D"
 
                 if i == 0:
-                    # Adjust the bevel depth to make the curve thicker
-                    curve_data.bevel_depth = (
-                        0.002  # Adjust this value for desired thickness
-                    )
-                    curve_data.fill_mode = "FULL"  # Ensures the curve is fully filled
+                # Adjust the bevel depth to make the curve thicker
+                curve_data.bevel_depth = (
+                    0.002  # Adjust this value for desired thickness
+                )
+                curve_data.fill_mode = "FULL"  # Ensures the curve is fully filled
 
-                    # Create a new basal spline in that curve
-                    spline = curve_data.splines.new(type="NURBS")
-                    if Hsample % Ndownsample == 0:
-                        spline.points.add(Hsample//Ndownsample)  # Add points (minus the default point)
-                    else:
-                        spline.points.add(Hsample//Ndownsample-1)  # Add points (minus the default point)
-                    spline.use_cyclic_u = False  # Ensure the spline is not cyclic
-                    spline.order_u = 4  # Order can be between 2 and 6
-                    spline.resolution_u = 12  # Increase for smoother curves
+                # Create a new basal spline in that curve
+                spline = curve_data.splines.new(type="NURBS")
+                if Hsample % Ndownsample == 0:
+                    spline.points.add(Hsample//Ndownsample)  # Add points (minus the default point)
+                else:
+                    spline.points.add(Hsample//Ndownsample-1)  # Add points (minus the default point)
+                spline.use_cyclic_u = False  # Ensure the spline is not cyclic
+                spline.order_u = 4  # Order can be between 2 and 6
+                spline.resolution_u = 12  # Increase for smoother curves
 
-                    # Initialize the spline points with the first frame data
-                    if traj_name == "torso":
-                        traj = xssss_torso[:, i, j]
-                    elif traj_name == "FL_foot":
-                        traj = xssss_feet[:, i, j, :, 0]
-                    elif traj_name == "FR_foot":
-                        traj = xssss_feet[:, i, j, :, 1]
-                    elif traj_name == "RL_foot":
-                        traj = xssss_feet[:, i, j, :, 2]
-                    elif traj_name == "RR_foot":
-                        traj = xssss_feet[:, i, j, :, 3]
-                    for p in range(Hsample):
-                        if p % Ndownsample != 0:
-                            continue
-                        x, y, z = traj[0, p]
-                        spline.points[p//Ndownsample].co = (x, y, z, 1)  
-
-
+                # Initialize the spline points with the first frame data
+                if traj_name == "torso":
+                    traj = xssss_torso[:, i, j]
+                elif traj_name == "FL_foot":
+                    traj = xssss_feet[:, i, j, :, 0]
+                elif traj_name == "FR_foot":
+                    traj = xssss_feet[:, i, j, :, 1]
+                elif traj_name == "RL_foot":
+                    traj = xssss_feet[:, i, j, :, 2]
+                elif traj_name == "RR_foot":
+                    traj = xssss_feet[:, i, j, :, 3]
+                for p in range(Hsample):
+                    if p % Ndownsample != 0:
+                        continue
+                    x, y, z = traj[0, p]
+                    spline.points[p//Ndownsample].co = (x, y, z, 1)  
 
 
 
-                    # Set the order of the NURBS spline (degree + 1)
-                    # spline.order_u = min(4, Hsample)  # Order cannot exceed number of points
-                    # spline.use_endpoint_u = True
 
 
-                    # Create a new object with the curve data
-                    curve_object = bpy.data.objects.new(
-                        f"{traj_name}_diffuse{i}_sample{j}", curve_data
-                    )
+                # Set the order of the NURBS spline (degree + 1)
+                # spline.order_u = min(4, Hsample)  # Order cannot exceed number of points
+                # spline.use_endpoint_u = True
 
 
-                    # Link the object to the current collection
-                    bpy.context.collection.objects.link(curve_object)
+                # Create a new object with the curve data
+                curve_object = bpy.data.objects.new(
+                    f"{traj_name}_diffuse{i}_sample{j}", curve_data
+                )
 
-                    # Assign the material to the curve object
-                    if curve_object.data.materials:
-                        # Assign to first material slot
-                        curve_object.data.materials[0] = material
-                    else:
-                        # Create a new material slot and assign
-                        curve_object.data.materials.append(material)
 
+                # Link the object to the current collection
+                bpy.context.collection.objects.link(curve_object)
+
+                # Assign the material to the curve object
+                if curve_object.data.materials:
+                    # Assign to first material slot
+                    curve_object.data.materials[0] = material
+                else:
+                    # Create a new material slot and assign
+                    curve_object.data.materials.append(material)
 
                 # Animate the curve by modifying control points over time
-                Nviz0 = Nviz // Ndiffuse
-                for frame in range(Nviz0*i, Nviz0*(i+1)):
+                for frame in range(Nviz):
                     bpy.context.scene.frame_set(frame)
-                    # update color and set to keyframe
-                    material.diffuse_color = color
-                    material.keyframe_insert("diffuse_color", frame=frame)
                     for k in range(Hsample):
                         if k % Ndownsample != 0:
                             continue
