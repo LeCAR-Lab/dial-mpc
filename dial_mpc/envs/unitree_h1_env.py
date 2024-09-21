@@ -56,16 +56,21 @@ class UnitreeH1WalkEnv(BaseEnv):
 
         # some body indices
         self._pelvis_idx = mujoco.mj_name2id(
-            self.sys.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, "pelvis")
+            self.sys.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, "pelvis"
+        )
         self._torso_idx = mujoco.mj_name2id(
-            self.sys.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, "torso_link")
+            self.sys.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, "torso_link"
+        )
 
         self._left_foot_idx = mujoco.mj_name2id(
-            self.sys.mj_model, mujoco.mjtObj.mjOBJ_SITE.value, "left_foot")
+            self.sys.mj_model, mujoco.mjtObj.mjOBJ_SITE.value, "left_foot"
+        )
         self._right_foot_idx = mujoco.mj_name2id(
-            self.sys.mj_model, mujoco.mjtObj.mjOBJ_SITE.value, "right_foot")
+            self.sys.mj_model, mujoco.mjtObj.mjOBJ_SITE.value, "right_foot"
+        )
         self._feet_site_id = jnp.array(
-            [self._left_foot_idx, self._right_foot_idx], dtype=jnp.int32)
+            [self._left_foot_idx, self._right_foot_idx], dtype=jnp.int32
+        )
         # gait phase
         self._gait = config.gait
         self._gait_phase = {
@@ -145,19 +150,22 @@ class UnitreeH1WalkEnv(BaseEnv):
         obs = self._get_obs(pipeline_state, state_info)
         reward, done = jnp.zeros(2)
         metrics = {}
-        state = State(
-            pipeline_state, obs, reward, done, metrics, state_info
-        )
+        state = State(pipeline_state, obs, reward, done, metrics, state_info)
         return state
 
     @partial(jax.jit, static_argnums=(0,))
     def act2joint(self, act: jax.Array) -> jax.Array:
-        act_normalized = (act * self._config.action_scale +
-                          1.0) / 2.0  # normalize to [0, 1]
+        act_normalized = (
+            act * self._config.action_scale + 1.0
+        ) / 2.0  # normalize to [0, 1]
         joint_targets = self._joint_range[:, 0] + act_normalized * (
-            self._joint_range[:, 1] - self._joint_range[:, 0])  # scale to joint range
+            self._joint_range[:, 1] - self._joint_range[:, 0]
+        )  # scale to joint range
         joint_targets = jnp.clip(
-            joint_targets, self._physical_joint_range[:, 0], self._physical_joint_range[:, 1])
+            joint_targets,
+            self._physical_joint_range[:, 0],
+            self._physical_joint_range[:, 1],
+        )
         return joint_targets
 
     @partial(jax.jit, static_argnums=(0,))
@@ -170,7 +178,8 @@ class UnitreeH1WalkEnv(BaseEnv):
         tau = self._config.kp * q_err - self._config.kd * qd
 
         tau = jnp.clip(
-            tau, self._joint_torque_range[:, 0], self._joint_torque_range[:, 1])
+            tau, self._joint_torque_range[:, 0], self._joint_torque_range[:, 1]
+        )
         return tau
 
     def step(
@@ -191,45 +200,58 @@ class UnitreeH1WalkEnv(BaseEnv):
         obs = self._get_obs(pipeline_state, state.info)
 
         # switch to new target if randomize_target is True
-        def dont_randomize(): return (
-            jnp.array([self._config.default_vx, self._config.default_vy, 0.0]), jnp.array(
-                [0.0, 0.0, self._config.default_vyaw])
-        )
+        def dont_randomize():
+            return (
+                jnp.array([self._config.default_vx, self._config.default_vy, 0.0]),
+                jnp.array([0.0, 0.0, self._config.default_vyaw]),
+            )
 
-        def randomize(): return self.sample_command(cmd_rng)
+        def randomize():
+            return self.sample_command(cmd_rng)
+
         vel_tar, ang_vel_tar = jax.lax.cond(
-            (state.info["randomize_target"]) & (state.info["step"] %
-                                                500 == 0), randomize, dont_randomize
+            (state.info["randomize_target"]) & (state.info["step"] % 500 == 0),
+            randomize,
+            dont_randomize,
         )
         state.info["vel_tar"] = jnp.minimum(
-            vel_tar * state.info["step"] * self.dt / self._config.ramp_up_time, vel_tar)
+            vel_tar * state.info["step"] * self.dt / self._config.ramp_up_time, vel_tar
+        )
         state.info["ang_vel_tar"] = jnp.minimum(
-            ang_vel_tar * state.info["step"] * self.dt / self._config.ramp_up_time, ang_vel_tar)
+            ang_vel_tar * state.info["step"] * self.dt / self._config.ramp_up_time,
+            ang_vel_tar,
+        )
 
         # reward
         # gaits reward
         # z_feet = pipeline_state.site_xpos[self._feet_site_id][:, 2]
         amplitude, cadence, duty_ratio = self._gait_params[self._gait]
         phases = self._gait_phase[self._gait]
-        z_feet_tar = get_foot_step(amplitude, cadence, duty_ratio, phases, state.info["step"] * self.dt)
+        z_feet_tar = get_foot_step(
+            amplitude, cadence, duty_ratio, phases, state.info["step"] * self.dt
+        )
         # reward_gaits = -jnp.sum(((z_feet_tar - z_feet)) ** 2)
-        z_feet = jnp.array([jnp.min(pipeline_state.contact.dist[:2]), jnp.min(
-            pipeline_state.contact.dist[2:])])
+        z_feet = jnp.array(
+            [
+                jnp.min(pipeline_state.contact.dist[:2]),
+                jnp.min(pipeline_state.contact.dist[2:]),
+            ]
+        )
         reward_gaits = -jnp.sum((z_feet_tar - z_feet) ** 2)
         # foot contact data based on z-position
         # pytype: disable=attribute-error
         foot_pos = pipeline_state.site_xpos[self._feet_site_id]
         foot_contact_z = foot_pos[:, 2]
         contact = foot_contact_z < 1e-3  # a mm or less off the floor
-        contact_filt_mm = contact | state.info['last_contact']
-        contact_filt_cm = (foot_contact_z < 3e-2) | state.info['last_contact']
-        first_contact = (state.info['feet_air_time'] > 0) * contact_filt_mm
-        state.info['feet_air_time'] += self.dt
-        reward_air_time = jnp.sum(
-            (state.info['feet_air_time'] - 0.1) * first_contact)
+        contact_filt_mm = contact | state.info["last_contact"]
+        contact_filt_cm = (foot_contact_z < 3e-2) | state.info["last_contact"]
+        first_contact = (state.info["feet_air_time"] > 0) * contact_filt_mm
+        state.info["feet_air_time"] += self.dt
+        reward_air_time = jnp.sum((state.info["feet_air_time"] - 0.1) * first_contact)
         # position reward
-        pos_tar = state.info["pos_tar"] + \
-            state.info["vel_tar"] * self.dt * state.info["step"]
+        pos_tar = (
+            state.info["pos_tar"] + state.info["vel_tar"] * self.dt * state.info["step"]
+        )
         pos = x.pos[self._torso_idx - 1]
         reward_pos = -jnp.sum((pos - pos_tar) ** 2)
         # stay upright reward
@@ -237,8 +259,10 @@ class UnitreeH1WalkEnv(BaseEnv):
         vec = math.rotate(vec_tar, x.rot[0])
         reward_upright = -jnp.sum(jnp.square(vec - vec_tar))
         # yaw orientation reward
-        yaw_tar = state.info["yaw_tar"] + \
-            state.info["ang_vel_tar"][2] * self.dt * state.info["step"]
+        yaw_tar = (
+            state.info["yaw_tar"]
+            + state.info["ang_vel_tar"][2] * self.dt * state.info["step"]
+        )
         yaw = math.quat_to_euler(x.rot[self._torso_idx - 1])[2]
         d_yaw = yaw - yaw_tar
         reward_yaw = -jnp.square(jnp.atan2(jnp.sin(d_yaw), jnp.cos(d_yaw)))
@@ -246,15 +270,17 @@ class UnitreeH1WalkEnv(BaseEnv):
         # reward_pose = -jnp.sum(jnp.square(joint_targets - self._default_pose))
         # velocity reward
         vb = global_to_body_velocity(
-            xd.vel[self._torso_idx - 1], x.rot[self._torso_idx - 1])
+            xd.vel[self._torso_idx - 1], x.rot[self._torso_idx - 1]
+        )
         ab = global_to_body_velocity(
-            xd.ang[self._torso_idx - 1] * jnp.pi / 180.0, x.rot[self._torso_idx - 1])
+            xd.ang[self._torso_idx - 1] * jnp.pi / 180.0, x.rot[self._torso_idx - 1]
+        )
         reward_vel = -jnp.sum((vb[:2] - state.info["vel_tar"][:2]) ** 2)
         reward_ang_vel = -jnp.sum((ab[2] - state.info["ang_vel_tar"][2]) ** 2)
         # height reward
-        reward_height = - \
-            jnp.sum((x.pos[self._torso_idx - 1, 2] -
-                    state.info["pos_tar"][2]) ** 2)
+        reward_height = -jnp.sum(
+            (x.pos[self._torso_idx - 1, 2] - state.info["pos_tar"][2]) ** 2
+        )
         # energy reward
         # reward_energy = -jnp.sum((ctrl * pipeline_state.qvel[6:] / 160.0) ** 2)
         reward_energy = -jnp.sum((ctrl / self._joint_torque_range[:, 1]) ** 2)
@@ -289,8 +315,8 @@ class UnitreeH1WalkEnv(BaseEnv):
         state.info["rng"] = rng
         state.info["z_feet"] = z_feet
         state.info["z_feet_tar"] = z_feet_tar
-        state.info['feet_air_time'] *= ~contact_filt_mm
-        state.info['last_contact'] = contact
+        state.info["feet_air_time"] *= ~contact_filt_mm
+        state.info["last_contact"] = contact
 
         state = state.replace(
             pipeline_state=pipeline_state, obs=obs, reward=reward, done=done
@@ -304,9 +330,11 @@ class UnitreeH1WalkEnv(BaseEnv):
     ) -> jax.Array:
         x, xd = pipeline_state.x, pipeline_state.xd
         vb = global_to_body_velocity(
-            xd.vel[self._torso_idx - 1], x.rot[self._torso_idx - 1])
+            xd.vel[self._torso_idx - 1], x.rot[self._torso_idx - 1]
+        )
         ab = global_to_body_velocity(
-            xd.ang[self._torso_idx - 1] * jnp.pi / 180.0, x.rot[self._torso_idx - 1])
+            xd.ang[self._torso_idx - 1] * jnp.pi / 180.0, x.rot[self._torso_idx - 1]
+        )
         obs = jnp.concatenate(
             [
                 state_info["vel_tar"],

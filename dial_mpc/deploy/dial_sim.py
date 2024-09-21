@@ -32,7 +32,12 @@ class DialSimConfig:
 
 
 class DialSim:
-    def __init__(self, sim_config: DialSimConfig, env_config: BaseEnvConfig, dial_config: DialConfig):
+    def __init__(
+        self,
+        sim_config: DialSimConfig,
+        env_config: BaseEnvConfig,
+        dial_config: DialConfig,
+    ):
         # control related
         self.plot = sim_config.plot
         self.record = sim_config.record
@@ -62,7 +67,7 @@ class DialSim:
         self.Nx = self.mj_model.nq + self.mj_model.nv
         self.Nu = self.mj_model.nu
 
-       # get home keyframe
+        # get home keyframe
         self.default_q = self.mj_model.keyframe("home").qpos
         self.default_u = self.mj_model.keyframe("home").ctrl
 
@@ -71,8 +76,7 @@ class DialSim:
         self.time_shm = shared_memory.SharedMemory(
             name="time_shm", create=True, size=32
         )
-        self.time_shared = np.ndarray(
-            1, dtype=np.float32, buffer=self.time_shm.buf)
+        self.time_shared = np.ndarray(1, dtype=np.float32, buffer=self.time_shm.buf)
         self.time_shared[0] = 0.0
         self.state_shm = shared_memory.SharedMemory(
             name="state_shm", create=True, size=self.Nx * 32
@@ -151,8 +155,7 @@ class DialSim:
             # iterate over all geoms
             for j in range(self.mj_model.nu):
                 color = np.array(
-                    [1.0 * i / (self.n_acts - 1), 1.0 * j /
-                     self.mj_model.nu, 0.0, 1.0]
+                    [1.0 * i / (self.n_acts - 1), 1.0 * j / self.mj_model.nu, 0.0, 1.0]
                 )
                 mujoco.mjv_initGeom(
                     viewer.user_scn.geoms[cnt],
@@ -191,13 +194,21 @@ class DialSim:
                     )
             if self.sync_mode:
                 while self.t <= (self.plan_time_shared[0] + self.ctrl_dt):
-                    if self.leg_control == 'position':
+                    if self.leg_control == "position":
                         self.mj_data.ctrl = self.acts_shared[0]
-                    elif self.leg_control == 'torque':
+                    elif self.leg_control == "torque":
                         self.mj_data.ctrl = self.tau_shared[0]
                     if self.record:
-                        self.data.append(np.concatenate(
-                            [[self.t], self.mj_data.qpos, self.mj_data.qvel, self.mj_data.ctrl]))
+                        self.data.append(
+                            np.concatenate(
+                                [
+                                    [self.t],
+                                    self.mj_data.qpos,
+                                    self.mj_data.qvel,
+                                    self.mj_data.ctrl,
+                                ]
+                            )
+                        )
                     mujoco.mj_step(self.mj_model, self.mj_data)
                     self.t += self.sim_dt
                     # publish new state
@@ -223,13 +234,21 @@ class DialSim:
                 if delta_step >= self.n_acts or delta_step < 0:
                     delta_step = self.n_acts - 1
 
-                if self.leg_control == 'position':
+                if self.leg_control == "position":
                     self.mj_data.ctrl = self.acts_shared[delta_step]
-                elif self.leg_control == 'torque':
+                elif self.leg_control == "torque":
                     self.mj_data.ctrl = self.tau_shared[delta_step]
                 if self.record:
-                    self.data.append(np.concatenate(
-                        [[self.t], self.mj_data.qpos, self.mj_data.qvel, self.mj_data.ctrl]))
+                    self.data.append(
+                        np.concatenate(
+                            [
+                                [self.t],
+                                self.mj_data.qpos,
+                                self.mj_data.qvel,
+                                self.mj_data.ctrl,
+                            ]
+                        )
+                    )
                 mujoco.mj_step(self.mj_model, self.mj_data)
                 self.t += self.sim_dt
                 q = self.mj_data.qpos
@@ -248,8 +267,7 @@ class DialSim:
                 t1 = time.time()
                 duration = t1 - t0
                 if duration < self.sim_dt / self.real_time_factor:
-                    time.sleep(
-                        (self.sim_dt / self.real_time_factor - duration))
+                    time.sleep((self.sim_dt / self.real_time_factor - duration))
                 else:
                     print("[WARN] Sim loop overruns")
 
@@ -271,10 +289,11 @@ class DialSim:
 def main(args=None):
     art.tprint("LeCAR @ CMU\nDIAL-MPC\nSIMULATOR", font="big", chr_ignore=True)
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str,
-                        default='config.yaml', help='Path to config file')
+    parser.add_argument(
+        "--config", type=str, default="config.yaml", help="Path to config file"
+    )
     args = parser.parse_args(args)
-    config_dict = yaml.safe_load(open(args.config, 'r'))
+    config_dict = yaml.safe_load(open(args.config, "r"))
     sim_config = load_dataclass_from_dict(DialSimConfig, config_dict)
     env_config = load_dataclass_from_dict(BaseEnvConfig, config_dict)
     dial_config = load_dataclass_from_dict(DialConfig, config_dict)
@@ -289,7 +308,9 @@ def main(args=None):
             timestamp = time.strftime("%Y%m%d-%H%M%S")
             data = np.array(mujoco_env.data)
             output_dir = os.path.join(
-                dial_config.output_dir, f"sim_{dial_config.env_name}_{env_config.task_name}_{timestamp}")
+                dial_config.output_dir,
+                f"sim_{dial_config.env_name}_{env_config.task_name}_{timestamp}",
+            )
             os.makedirs(output_dir)
             np.save(os.path.join(output_dir, "states"), data)
 

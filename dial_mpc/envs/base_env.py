@@ -8,7 +8,7 @@ from brax.envs.base import PipelineEnv
 
 @dataclass
 class BaseEnvConfig:
-    task_name: str = 'default'
+    task_name: str = "default"
     randomize_tasks: bool = False  # Whether to randomize the task.
     # P gain, or a list of P gains for each joint.
     kp: Union[float, jax.Array] = 30.0
@@ -19,7 +19,7 @@ class BaseEnvConfig:
     dt: float = 0.02
     # timestep of the underlying simulator step. user is responsible for making sure it matches their model.
     timestep: float = 0.02
-    backend: str = 'mjx'  # backend of the environment.
+    backend: str = "mjx"  # backend of the environment.
     # control method for the joints, either "torque" or "position"
     leg_control: str = "torque"
     action_scale: float = 1.0  # scale of the action space.
@@ -27,7 +27,7 @@ class BaseEnvConfig:
 
 class BaseEnv(PipelineEnv):
     def __init__(self, config: BaseEnvConfig):
-        assert config.dt % config.timestep == 0, 'timestep must be divisible by dt'
+        assert config.dt % config.timestep == 0, "timestep must be divisible by dt"
         self._config = config
         n_frames = int(config.dt / config.timestep)
         sys = self.make_system(config)

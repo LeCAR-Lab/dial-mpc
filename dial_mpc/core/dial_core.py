@@ -80,26 +80,23 @@ class MBDPI:
         A = sigma0
         B = jnp.log(sigma1 / sigma0) / args.Ndiffuse
         self.sigmas = A * jnp.exp(B * jnp.arange(args.Ndiffuse))
-        self.sigma_control = args.horizon_diffuse_factor ** jnp.arange(args.Hnode + 1)[
-            ::-1]
+        self.sigma_control = (
+            args.horizon_diffuse_factor ** jnp.arange(args.Hnode + 1)[::-1]
+        )
 
         # node to u
         self.ctrl_dt = 0.02
-        self.step_us = jnp.linspace(
-            0, self.ctrl_dt * args.Hsample, args.Hsample + 1)
-        self.step_nodes = jnp.linspace(
-            0, self.ctrl_dt * args.Hsample, args.Hnode + 1)
+        self.step_us = jnp.linspace(0, self.ctrl_dt * args.Hsample, args.Hsample + 1)
+        self.step_nodes = jnp.linspace(0, self.ctrl_dt * args.Hsample, args.Hnode + 1)
         self.node_dt = self.ctrl_dt * (args.Hsample) / (args.Hnode)
 
         # setup function
         self.rollout_us = jax.jit(functools.partial(rollout_us, self.env.step))
-        self.rollout_us_vmap = jax.jit(
-            jax.vmap(self.rollout_us, in_axes=(None, 0)))
+        self.rollout_us_vmap = jax.jit(jax.vmap(self.rollout_us, in_axes=(None, 0)))
         self.node2u_vmap = jax.jit(
             jax.vmap(self.node2u, in_axes=(1), out_axes=(1))
         )  # process (horizon, node)
-        self.u2node_vmap = jax.jit(
-            jax.vmap(self.u2node, in_axes=(1), out_axes=(1)))
+        self.u2node_vmap = jax.jit(jax.vmap(self.u2node, in_axes=(1), out_axes=(1)))
         self.node2u_vvmap = jax.jit(
             jax.vmap(self.node2u_vmap, in_axes=(0))
         )  # process (batch, horizon, node)
@@ -143,8 +140,7 @@ class MBDPI:
         logp0 = (rews - rew_Ybar_i) / rews.std(axis=-1) / self.args.temp_sample
 
         weights = jax.nn.softmax(logp0)
-        Ybar, new_noise_scale = self.update_fn(
-            weights, Y0s, noise_scale, Ybar_i)
+        Ybar, new_noise_scale = self.update_fn(weights, Y0s, noise_scale, Ybar_i)
 
         # NOTE: update only with reward
         Ybar = jnp.einsum("n,nij->ij", weights, Y0s)
@@ -168,13 +164,11 @@ class MBDPI:
             for i in pbar:
                 t0 = time.time()
                 rng, Yi, rews = self.reverse_once(
-                    state, rng, Yi, self.sigmas[i] *
-                    jnp.ones(self.args.Hnode + 1)
+                    state, rng, Yi, self.sigmas[i] * jnp.ones(self.args.Hnode + 1)
                 )
                 Yi.block_until_ready()
                 freq = 1 / (time.time() - t0)
-                pbar.set_postfix(
-                    {"rew": f"{rews.mean():.2e}", "freq": f"{freq:.2f}"})
+                pbar.set_postfix({"rew": f"{rews.mean():.2e}", "freq": f"{freq:.2f}"})
         return Yi
 
     @functools.partial(jax.jit, static_argnums=(0,))
@@ -196,8 +190,7 @@ def main():
 
     def reverse_scan(rng_Y0_state, factor):
         rng, Y0, state = rng_Y0_state
-        rng, Y0, info = mbdpi.reverse_once(
-            state, rng, Y0, factor)
+        rng, Y0, info = mbdpi.reverse_once(state, rng, Y0, factor)
         return (rng, Y0, state), info
 
     art.tprint("LeCAR @ CMU\nDIAL-MPC", font="big", chr_ignore=True)
@@ -219,8 +212,7 @@ def main():
         return
 
     if args.example is not None:
-        config_dict = yaml.safe_load(
-            open(get_example_path(args.example + ".yaml")))
+        config_dict = yaml.safe_load(open(get_example_path(args.example + ".yaml")))
     else:
         config_dict = yaml.safe_load(open(args.config))
 
@@ -232,8 +224,7 @@ def main():
     env_config = load_dataclass_from_dict(env_config_type, config_dict)
 
     print(emoji.emojize(":rocket:") + "Creating environment")
-    env = brax_envs.get_environment(
-        dial_config.env_name, config=env_config)
+    env = brax_envs.get_environment(dial_config.env_name, config=env_config)
     reset_env = jax.jit(env.reset)
     step_env = jax.jit(env.step)
     mbdpi = MBDPI(dial_config, env)
@@ -271,13 +262,16 @@ def main():
                 print("Performing JIT on DIAL-MPC")
 
             t0 = time.time()
-            traj_diffuse_factors = dial_config.traj_diffuse_factor**(jnp.arange(n_diffuse))[:, None]
-            (rng, Y0, _), info = jax.lax.scan(reverse_scan, (rng, Y0, state), traj_diffuse_factors)
+            traj_diffuse_factors = (
+                dial_config.traj_diffuse_factor ** (jnp.arange(n_diffuse))[:, None]
+            )
+            (rng, Y0, _), info = jax.lax.scan(
+                reverse_scan, (rng, Y0, state), traj_diffuse_factors
+            )
             rews_plan.append(info["rews"][-1].mean())
             infos.append(info)
             freq = 1 / (time.time() - t0)
-            pbar.set_postfix(
-                {"rew": f"{state.reward:.2e}", "freq": f"{freq:.2f}"})
+            pbar.set_postfix({"rew": f"{state.reward:.2e}", "freq": f"{freq:.2f}"})
 
     rew = jnp.array(rews).mean()
     print(f"mean reward = {rew:.2e}")
@@ -302,11 +296,15 @@ def main():
     import flask
 
     app = flask.Flask(__name__)
-    webpage = html.render(env.sys.tree_replace(
-        {"opt.timestep": env.dt}), rollout, 1080, True)
+    webpage = html.render(
+        env.sys.tree_replace({"opt.timestep": env.dt}), rollout, 1080, True
+    )
 
     # save the html file
-    with open(os.path.join(dial_config.output_dir, f"{timestamp}_brax_visualization.html"), "w") as f:
+    with open(
+        os.path.join(dial_config.output_dir, f"{timestamp}_brax_visualization.html"),
+        "w",
+    ) as f:
         f.write(webpage)
 
     # save the rollout
@@ -314,8 +312,17 @@ def main():
     xdata = []
     for i in range(len(rollout)):
         pipeline_state = rollout[i]
-        data.append(jnp.concatenate([jnp.array([i]), pipeline_state.qpos, pipeline_state.qvel, pipeline_state.ctrl]))
-        xdata.append(infos[i]['xbar'][-1])
+        data.append(
+            jnp.concatenate(
+                [
+                    jnp.array([i]),
+                    pipeline_state.qpos,
+                    pipeline_state.qvel,
+                    pipeline_state.ctrl,
+                ]
+            )
+        )
+        xdata.append(infos[i]["xbar"][-1])
     data = jnp.array(data)
     xdata = jnp.array(xdata)
     jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_states"), data)

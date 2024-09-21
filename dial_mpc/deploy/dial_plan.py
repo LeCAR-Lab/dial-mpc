@@ -54,7 +54,9 @@ def pipeline_init(
 
 
 class MBDPublisher:
-    def __init__(self, env: BaseEnv, env_config: BaseEnvConfig, dial_config: DialConfig):
+    def __init__(
+        self, env: BaseEnv, env_config: BaseEnvConfig, dial_config: DialConfig
+    ):
         # MBD related
         # setup MBDPI controller
         self.dial_config = dial_config
@@ -90,7 +92,9 @@ class MBDPublisher:
             name="refs_shm", create=False, size=self.n_acts * self.env.sys.nu * 3 * 32
         )
         self.refs_shared = np.ndarray(
-            (self.n_acts, self.env.sys.nu, 3), dtype=np.float32, buffer=self.refs_shm.buf
+            (self.n_acts, self.env.sys.nu, 3),
+            dtype=np.float32,
+            buffer=self.refs_shm.buf,
         )
         self.refs_shared[:] = 1.0
         self.plan_time_shm = shared_memory.SharedMemory(
@@ -146,8 +150,7 @@ class MBDPublisher:
 
         def reverse_scan(rng_Y0_state, factor):
             rng, Y0, state = rng_Y0_state
-            rng, Y0, info = self.mbdpi.reverse_once(
-                state, rng, Y0, factor)
+            rng, Y0, info = self.mbdpi.reverse_once(state, rng, Y0, factor)
             return (rng, Y0, state), info
 
         last_plan_time = self.time_shared[0]
@@ -185,11 +188,20 @@ class MBDPublisher:
                 print("Performing JIT on DIAL-MPC")
                 n_diffuse = self.dial_config.Ndiffuse_init
                 first_time = False
-                traj_diffuse_factors = self.dial_config.traj_diffuse_factor**(jnp.arange(n_diffuse))[:, None]
-                (self.rng, self.Y, _), info = jax.lax.scan(reverse_scan, (self.rng, self.Y, state), traj_diffuse_factors)
+                traj_diffuse_factors = (
+                    self.dial_config.traj_diffuse_factor
+                    ** (jnp.arange(n_diffuse))[:, None]
+                )
+                (self.rng, self.Y, _), info = jax.lax.scan(
+                    reverse_scan, (self.rng, self.Y, state), traj_diffuse_factors
+                )
                 n_diffuse = self.dial_config.Ndiffuse
-            traj_diffuse_factors = self.dial_config.traj_diffuse_factor**(jnp.arange(n_diffuse))[:, None]
-            (self.rng, self.Y, _), info = jax.lax.scan(reverse_scan, (self.rng, self.Y, state), traj_diffuse_factors)
+            traj_diffuse_factors = (
+                self.dial_config.traj_diffuse_factor ** (jnp.arange(n_diffuse))[:, None]
+            )
+            (self.rng, self.Y, _), info = jax.lax.scan(
+                reverse_scan, (self.rng, self.Y, state), traj_diffuse_factors
+            )
             # use position control
             actual_joint_targets = info["qbar"][:, 7:]
             x_targets = info["xbar"][-1, :, 1:, :3]
@@ -202,7 +214,7 @@ class MBDPublisher:
             self.acts_shared[: joint_targets.shape[0], :] = joint_targets
             self.tau_shared[: taus.shape[0], :] = taus
             self.plan_time_shared[0] = plan_time
-            self.refs_shared[:, :, :] = x_targets[:self.refs_shared.shape[0], :, :]
+            self.refs_shared[:, :, :] = x_targets[: self.refs_shared.shape[0], :, :]
             # record time
             last_plan_time = plan_time
             if time.time() - t0 > self.ctrl_dt:
