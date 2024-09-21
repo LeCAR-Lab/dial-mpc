@@ -8,6 +8,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import scienceplots
 import art
+import emoji
 
 import jax
 from jax import numpy as jnp
@@ -230,7 +231,7 @@ def main():
     env_config_type = dial_envs.get_config(dial_config.env_name)
     env_config = load_dataclass_from_dict(env_config_type, config_dict)
 
-    print("Creating environment")
+    print(emoji.emojize(":rocket:") + "Creating environment")
     env = brax_envs.get_environment(
         dial_config.env_name, config=env_config)
     reset_env = jax.jit(env.reset)
@@ -252,6 +253,7 @@ def main():
     rollout = []
     state = state_init
     us = []
+    infos = []
     with tqdm(range(Nstep), desc="Rollout") as pbar:
         for t in pbar:
             # forward single step
@@ -271,7 +273,8 @@ def main():
             t0 = time.time()
             traj_diffuse_factors = dial_config.traj_diffuse_factor**(jnp.arange(n_diffuse))[:, None]
             (rng, Y0, _), info = jax.lax.scan(reverse_scan, (rng, Y0, state), traj_diffuse_factors)
-            rews_plan.append(info["rews"].mean())
+            rews_plan.append(info["rews"][-1].mean())
+            infos.append(info)
             freq = 1 / (time.time() - t0)
             pbar.set_postfix(
                 {"rew": f"{state.reward:.2e}", "freq": f"{freq:.2f}"})
@@ -305,6 +308,18 @@ def main():
     # save the html file
     with open(os.path.join(dial_config.output_dir, f"{timestamp}_brax_visualization.html"), "w") as f:
         f.write(webpage)
+
+    # save the rollout
+    data = []
+    xdata = []
+    for i in range(len(rollout)):
+        pipeline_state = rollout[i]
+        data.append(jnp.concatenate([jnp.array([i]), pipeline_state.qpos, pipeline_state.qvel, pipeline_state.ctrl]))
+        xdata.append(infos[i]['xbar'][-1])
+    data = jnp.array(data)
+    xdata = jnp.array(xdata)
+    jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_states"), data)
+    jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_predictions"), xdata)
 
     @app.route("/")
     def index():
