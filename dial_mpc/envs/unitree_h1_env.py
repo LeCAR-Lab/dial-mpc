@@ -18,7 +18,7 @@ import mujoco
 from mujoco import mjx
 
 from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
-from dial_mpc.utils.math_utils import global_to_body_velocity
+from dial_mpc.utils.function_utils import global_to_body_velocity
 from dial_mpc.utils.io_utils import get_model_path
 import dial_mpc.envs as dial_envs
 
