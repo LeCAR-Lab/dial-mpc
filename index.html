@@ -127,9 +127,9 @@
             <div class="content has-text-centered">
                 <h2 class="title is-3">Overview Video</h2>
                 <!-- invert static/videos/intro.mov -->
-                <!-- <video poster="" id="intro" autoplay controls muted loop playsinline height="100%">
-                    <source src="" type="video/mp4">
-                </video> -->
+                <video poster="" id="intro" autoplay controls muted loop playsinline height="100%">
+                    <source src="./static/videos/dial_mpc_project_teaser_video.mp4" type="video/mp4">
+                </video>
             </div>
         </div>
     </section>
@@ -137,7 +137,7 @@
     <section class="hero is-light is-small">
         <div class="hero-body">
             <div class="container">
-                <h2 class="title is-3 has-text-centered">Highlights (TODO: put rendered / real-world videos here)</h2>
+                <h2 class="title is-3 has-text-centered">Highlights</h2>
                 <div id="results-carousel" class="carousel results-carousel">
                     <div class="item item-steve">
                         <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
@@ -149,7 +149,41 @@
                             <source src="./static/videos/jump.mp4" type="video/mp4">
                         </video>
                     </div>
-
+                    <div class="item item-steve">
+                        <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+                            <source src="./static/videos/h1_jog.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                    <div class="item item-steve">
+                        <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+                            <source src="./static/videos/go2_sim_climb.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                    
+                    <div class="item item-steve">
+                        <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+                            <source src="./static/videos/go2_real_run.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                    
+                    <div class="item item-steve">
+                        <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+                            <source src="./static/videos/go2_real_jump.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                    
+                    <div class="item item-steve">
+                        <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+                            <source src="./static/videos/go2_sim_forward.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                    
+                    <div class="item item-steve">
+                        <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+                            <source src="./static/videos/go2_sim_backward.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                    
                 </div>
             </div>
         </div>
@@ -197,8 +231,8 @@
             <div class="columns is-centered has-text-centered">
                 <div class="column is-four-fifths">
                     <!-- include a figure -->
-                    <figure class="image">
-                        <img src="./static/images/teaser.png" alt="Teaser" style="max-width: 100%;">
+                    <figure class="image is-flex is-justify-content-center">
+                        <img src="./static/images/teaser.png" alt="Teaser" style="max-width: 50%;">
                     </figure>
                     <p>
                         DIAL-MPC is a sampling-based MPC framework with a novel diffusion-style annealing process.
@@ -224,8 +258,8 @@
                             <b>
                                 DIAL-MPC is a <u>training-free</u> full-order torque-level legged robot controller:
                             </b>
-                            DIAL-MPC is a MPC framework that can optimize over full-order quadruped dynamics in
-                            real-time without heavy assumption on dynamics and cost functions.
+                            DIAL-MPC is a MPC framework that can optimize over full-order legged robot dynamics in
+                            real-time without heavy assumption on dynamics and cost functions. (i.e. plug-and-play with any model and cost function)
                             To our knowledge, this is the first framework achieving both real-time flexibility
                             and RL-level agility in legged locomotion.
                         </p>
@@ -235,10 +269,34 @@
                                 Diffusion-style Annealing:
                             </b>
                             To achieve efficient real-time locomotion, DIAL-MPC extends MPPI with a diffusion-style
-                            annealing process to achieve better global coverage and local convergence.
+                            annealing process in both <u>trajectory-level</u> and <u>action-level</u> to achieve better global coverage and local convergence.
                         </p>
+                        <!-- include video traj_annealing_combined.mp4 -->
+
+                        <figure class="image">
+                            <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+                                <source src="./static/videos/traj_annealing_combined.mp4" type="video/mp4">
+                            </video>
+                            <!-- add caption -->
+                            <p>
+                                Trajectory-level annealing: at certain time step, DIAL-MPC optimizes the planned trajectory iteratively. 
+                            </p>
+                        </figure>
+                        <!-- anther video action_annealing_combined.mp4 -->
+
+                        <figure class="image">
+                            <video poster="" id="steve" autoplay controls muted loop playsinline height="100%">
+                                <source src="./static/videos/action_anneling.mp4" type="video/mp4">
+                            </video>
+                            <p>
+                                Action-level annealing: across different time step, the same action is optimized when doing receding horizon with a scheduled sampling kernel. 
+                            </p>
+                        </figure>
                     </div>
+
                 </div>
+
+
             </div>
         </div>
     </section>
@@ -260,7 +318,7 @@
                         Our theoretical analysis reveals that MPPI is a single-stage diffusion process, where the score
                         function is approximated with Monte Carlo sampling.
                     </p>
-                    <figure class="image">
+                    <figure class="image is-flex is-justify-content-center">
                         <img src="./static/images/demo_task.png" alt="Demo Task" style="max-width: 50%;">
                     </figure>
                     <p>
@@ -269,7 +327,7 @@
                         </b>
                         Due to the sparsity and non-smooth nature of p0, MPPI either optimize a over-smoothed function or a highly non-smooth function, leading to suboptimal solutions or high variance. Diffusion process overcomes this problem by iteratively refining solutions over a series of smoothing levels.
                     </p>
-                    <figure class="image">
+                    <figure class="image is-flex is-justify-content-center">
                         <img src="./static/images/demo_forward.png" alt="DIAL-MPC" style="max-width: 50%;">
                     </figure>
                     <p>
@@ -280,7 +338,7 @@
                         refines solutions in a diffusion manner, leading to better coverage and convergence for
                         contact-rich locomotion tasks.
                     </p>
-                    <figure class="image">
+                    <figure class="image is-flex is-justify-content-center">
                         <img src="./static/images/demo_compare.png" alt="DIAL-MPC" style="max-width: 50%;">
                     </figure>
                 </div>
