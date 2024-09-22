@@ -71,7 +71,9 @@ class BaseEnv(PipelineEnv):
         joint_target = self.act2joint(act)
 
         q = pipline_state.qpos[7:]
+        q = q[: len(joint_target)]
         qd = pipline_state.qvel[6:]
+        qd = qd[: len(joint_target)]
         q_err = joint_target - q
         tau = self._config.kp * q_err - self._config.kd * qd
 
