@@ -205,6 +205,7 @@ def main():
         "unitree_h1_jog",
         "unitree_go2_trot",
         "unitree_go2_seq_jump",
+        "unitree_go2_crate_climb",
     ]
 
     if args.list_examples:

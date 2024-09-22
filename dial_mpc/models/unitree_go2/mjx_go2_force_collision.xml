@@ -5,7 +5,7 @@
     <flag eulerdamp="disable"/>
   </option> -->
 
-    <option iterations="1" ls_iterations="5" gravity="0.0 0.0 -9.81">
+    <option iterations="2" ls_iterations="5" gravity="0.0 0.0 -9.81">
         <flag eulerdamp="disable" />
     </option>
 
