@@ -30,7 +30,7 @@ class UnitreeGo2EnvConfig(BaseEnvConfig):
     default_vy: float = 0.0
     default_vyaw: float = 0.0
     ramp_up_time: float = 2.0
-    gait: str = "jog"
+    gait: str = "trot"
 
 
 class UnitreeGo2Env(BaseEnv):
@@ -315,4 +315,336 @@ class UnitreeGo2Env(BaseEnv):
         return new_lin_vel_cmd, new_ang_vel_cmd
 
 
+@dataclass
+class UnitreeGo2SeqJumpEnvConfig(UnitreeGo2EnvConfig):
+    jump_dt: float = 1.0
+    contact_targets: jax.Array = None
+    contact_target_radius: jax.Array = None
+    pose_target_sequence: jax.Array = None
+    yaw_target_sequence: jax.Array = None
+
+
+class UnitreeGo2SeqJumpEnv(UnitreeGo2Env):
+    def __init__(
+        self, config: UnitreeGo2SeqJumpEnvConfig = UnitreeGo2SeqJumpEnvConfig()
+    ):
+        super().__init__(config)
+        if config.contact_targets is None or config.contact_target_radius is None:
+            (
+                self._contact_targets,
+                self._contact_target_radius,
+                self._pose_target_sequence,
+                self._yaw_target_sequence,
+            ) = UnitreeGo2SeqJumpEnv.generate_jumping_sequence(
+                config.pose_target_sequence, config.yaw_target_sequence, 0.1
+            )
+        else:
+            self._contact_targets = config.contact_targets
+            self._contact_target_radius = config.contact_target_radius
+            self._pose_target_sequence = config.pose_target_sequence
+            self._yaw_target_sequence = config.yaw_target_sequence
+        self.joint_range = jnp.array(
+            [
+                [-0.5, 0.5],
+                [0.4, 2.0],
+                [-2.3, -1.3],
+                [-0.5, 0.5],
+                [0.4, 2.0],
+                [-2.3, -1.3],
+                [-0.5, 0.5],
+                [0.4, 1.4],
+                [-2.3, -1.3],
+                [-0.5, 0.5],
+                [0.4, 1.4],
+                [-2.3, -1.3],
+            ]
+        )
+
+    def reset(self, rng: jax.Array) -> State:
+        rng, key = jax.random.split(rng)
+        pipeline_state = self.pipeline_init(self._init_q, jnp.zeros(self._nv))
+
+        state_info = {
+            "rng": rng,
+            "pos_tar": jnp.array([0.0, 0.0, 0.27]),
+            "vel_tar": jnp.array([0.0, 0.0, 0.0]),
+            "ang_vel_tar": jnp.array([0.0, 0.0, 0.0]),
+            "yaw_tar": 0.0,
+            "step": 0,
+            "z_feet": jnp.zeros(4),
+            "z_feet_tar": jnp.zeros(4),
+            "randomize_target": self._config.randomize_tasks,
+            "last_contact": jnp.zeros(4, dtype=jnp.bool),
+            "feet_air_time": jnp.zeros(4),
+            "last_ctrl": jnp.zeros(12),
+        }
+
+        state_info["contact_stage"] = 0
+        if not self._config.randomize_tasks:
+            state_info["contact_targets"] = self._contact_targets
+            state_info["contact_target_radius"] = self._contact_target_radius
+            state_info["pose_target_sequence"] = self._pose_target_sequence
+            state_info["yaw_target_sequence"] = self._yaw_target_sequence
+        else:
+            (
+                state_info["contact_targets"],
+                state_info["contact_target_radius"],
+                state_info["pose_target_sequence"],
+                state_info["yaw_target_sequence"],
+            ) = self.sample_command(rng)
+
+        obs = self._get_obs(pipeline_state, state_info)
+        reward, done = jnp.zeros(2)
+        metrics = {}
+        state = State(pipeline_state, obs, reward, done, metrics, state_info)
+
+        return state
+
+    def step(
+        self, state: State, action: jax.Array
+    ) -> State:  # pytype: disable=signature-mismatch
+        rng, cmd_rng = jax.random.split(state.info["rng"], 2)
+
+        # physics step
+        if self._config.leg_control == "position":
+            ctrl = self.act2joint(action)
+        elif self._config.leg_control == "torque":
+            ctrl = self.act2tau(action, state.pipeline_state)
+        else:
+            raise ValueError("Invalid leg control type.")
+        pipeline_state = self.pipeline_step(state.pipeline_state, ctrl)
+        x, xd = pipeline_state.x, pipeline_state.xd
+
+        # observation data
+        obs = self._get_obs(pipeline_state, state.info)
+
+        # done
+        done = 0.0
+
+        # reward
+        # gaits reward
+        z_feet = pipeline_state.site_xpos[self._feet_site_id][:, 2]
+        duty_ratio, cadence, amplitude = self._gait_params[self._gait]
+        phases = self._gait_phase[self._gait]
+        z_feet_tar = get_foot_step(
+            duty_ratio, cadence, amplitude, phases, state.info["step"] * self.dt
+        )
+        reward_gaits = -jnp.sum(((z_feet_tar - z_feet) / 0.05) ** 2)
+        # position reward
+        pose_target_sequence = state.info["pose_target_sequence"]
+        pos_tar = pose_target_sequence[state.info["contact_stage"]]
+        pos = x.pos[self._torso_idx - 1]
+        reward_pos = -jnp.sum((pos - pos_tar) ** 2)
+        # stay upright reward
+        vec_tar = jnp.array([0.0, 0.0, 1.0])
+        vec = math.rotate(vec_tar, x.rot[0])
+        reward_upright = -jnp.sum(jnp.square(vec - vec_tar))
+        # yaw orientation reward
+        yaw_target_sequence = state.info["yaw_target_sequence"]
+        yaw_tar = yaw_target_sequence[state.info["contact_stage"]]
+        yaw = math.quat_to_euler(x.rot[self._torso_idx - 1])[2]
+        reward_yaw = -jnp.square(yaw - yaw_tar)
+        # stay to norminal pose reward
+        # reward_pose = -jnp.sum(jnp.square(joint_targets - self._default_pose))
+
+        # contact reward
+        reward_contact = 0.0
+        penalty_contact = pipeline_state.contact.dist <= 0.001
+        reward_1 = lambda x: 1.0 * x
+        reward_0 = lambda x: 0.0
+        contact_targets = state.info["contact_targets"]
+        contact_target_radius = state.info["contact_target_radius"]
+        for i in range(4):
+            for j in range(len(contact_targets)):
+                contact_dist = pipeline_state.contact.dist[i]
+                contact_pt = pipeline_state.contact.pos[i]
+                cond = (
+                    jnp.sum((contact_pt[:2] - contact_targets[j, i, :2]) ** 2)
+                    <= contact_target_radius[j, i] ** 2
+                )  # & (z_feet[i] < 0.001)
+                reward_contact += jax.lax.cond(
+                    cond,
+                    reward_1,
+                    reward_0,
+                    (j == state.info["contact_stage"])
+                    * jnp.clip(contact_dist * -1.0 + 1.0, 0.0, 1.0),
+                )
+                penalty_contact = penalty_contact.at[i].set(
+                    penalty_contact[i] & (~cond)
+                )
+        penalty_contact = jnp.sum(penalty_contact)
+        # energy reward
+        reward_energy = -jnp.sum(
+            jnp.maximum(ctrl * pipeline_state.qvel[6:] / 160.0, 0.0) ** 2
+        )
+        # control rate reward
+        reward_ctrl_rate = -jnp.sum((ctrl - state.info["last_ctrl"]) ** 2)
+        # alive reward
+        reward_alive = 1.0
+        # reward
+        reward = (
+            reward_gaits * 0.0
+            + reward_pos * 1.0
+            + reward_upright * 1.0
+            + reward_yaw * 0.3
+            # + reward_pose * 0.0
+            + reward_contact * 0.1
+            - penalty_contact * 0.1
+            + reward_energy * 0.0
+            + reward_ctrl_rate * 0.0
+            + reward_alive * 10.0
+        )
+
+        # done
+        up = jnp.array([0.0, 0.0, 1.0])
+        joint_angles = pipeline_state.q[7:]
+        done = jnp.dot(math.rotate(up, x.rot[self._torso_idx - 1]), up) < 0
+        done |= jnp.any(joint_angles < self.joint_range[:, 0])
+        done |= jnp.any(joint_angles > self.joint_range[:, 1])
+        done |= pipeline_state.x.pos[self._torso_idx - 1, 2] < 0.1
+        done = done.astype(jnp.float32)
+
+        # state management
+        state.info["step"] += 1
+        state.info["rng"] = rng
+        state.info["z_feet"] = z_feet
+        state.info["z_feet_tar"] = z_feet_tar
+        state.info["contact_stage"] = jnp.minimum(
+            jnp.floor(state.info["step"] * self.dt / self._config.jump_dt),
+            len(contact_targets) - 1,
+        ).astype(jnp.int32)
+        state.info["last_ctrl"] = ctrl
+
+        state = state.replace(
+            pipeline_state=pipeline_state, obs=obs, reward=reward, done=done
+        )
+        return state
+
+    def _get_obs(
+        self,
+        pipeline_state: base.State,
+        state_info: dict[str, Any],
+    ) -> jax.Array:
+        x, xd = pipeline_state.x, pipeline_state.xd
+        vb = global_to_body_velocity(
+            xd.vel[self._torso_idx - 1], x.rot[self._torso_idx - 1]
+        )
+        ab = global_to_body_velocity(
+            xd.ang[self._torso_idx - 1] * jnp.pi / 180.0, x.rot[self._torso_idx - 1]
+        )
+        quat = pipeline_state.qpos[3:7]
+        rpy = math.quat_to_euler(quat)
+        pose_target = state_info["pose_target_sequence"][state_info["contact_stage"]]
+        yaw_target = state_info["yaw_target_sequence"][state_info["contact_stage"]]
+
+        diff_position = x.pos[self._torso_idx - 1] - pose_target
+        diff_yaw = rpy[2] - yaw_target
+        diff_yaw = jnp.arctan2(jnp.sin(diff_yaw), jnp.cos(diff_yaw)).reshape(1)
+        obs = jnp.concatenate(
+            [
+                state_info["vel_tar"],
+                state_info["ang_vel_tar"],
+                state_info["last_ctrl"],
+                diff_position,
+                rpy[:2],
+                diff_yaw,
+                pipeline_state.qpos[7:],
+                vb,
+                ab,
+                pipeline_state.qvel[6:],
+            ]
+        )
+        return obs
+
+    def generate_jumping_sequence(
+        com_pos: Sequence, com_heading: Sequence, foot_place_radius: float
+    ):
+        n_steps = com_pos.shape[0]
+        contact_targets = []
+        contact_target_radius = jnp.full((n_steps, 4), foot_place_radius)
+        pose_target_sequence = jnp.array(com_pos)
+        yaw_target_sequence = jnp.array(com_heading)
+        assert n_steps == len(com_heading)
+
+        for i in range(n_steps):
+            contact_target = jnp.repeat(jnp.array([com_pos[i]]), 4, axis=0)
+            offsets = jnp.array(
+                [
+                    [0.2, -0.135, 0.0],  # FR
+                    [0.2, 0.135, 0.0],  # FL
+                    [-0.2, -0.135, 0.0],  # RR
+                    [-0.2, 0.135, 0.0],  # RL
+                ]
+            )
+            R = math.quat_to_3x3(
+                math.euler_to_quat(jnp.array([0.0, 0.0, com_heading[i] * 180 / jnp.pi]))
+            )
+            offsets = jnp.dot(offsets, R.T)
+            contact_target = contact_target + offsets
+            contact_targets.append(contact_target)
+        contact_targets = jnp.array(contact_targets)
+
+        return (
+            contact_targets,
+            contact_target_radius,
+            pose_target_sequence,
+            yaw_target_sequence,
+        )
+
+    def sample_command(
+        self, rng: jax.Array
+    ) -> tuple[jax.Array, jax.Array, jax.Array, jax.Array]:
+        com_pos_begin = jnp.array([0.0, 0.0, 0.27])
+        com_yaw_begin = jnp.array([0.0])
+
+        def randomize_com_pos(last_com_pos, rng):
+            next_com_pos = last_com_pos.at[:2].add(
+                jax.random.uniform(rng, (2,), minval=-0.65, maxval=0.65)
+            )
+            return next_com_pos, next_com_pos
+
+        def randomize_com_yaw(last_com_yaw, rng):
+            next_com_yaw = last_com_yaw + jax.random.uniform(
+                rng, (1,), minval=-0.5, maxval=0.5
+            )
+            return next_com_yaw, next_com_yaw
+
+        n_steps = 10
+        keys = jax.random.split(rng, n_steps * 2)
+        _, com_pos = jax.lax.scan(randomize_com_pos, com_pos_begin, keys[:n_steps])
+        _, com_yaw = jax.lax.scan(randomize_com_yaw, com_yaw_begin, keys[n_steps:])
+        com_pos = jnp.concatenate([com_pos_begin.reshape(1, 3), com_pos], axis=0)
+        com_yaw = jnp.concatenate(
+            [com_yaw_begin.reshape(1, 1), com_yaw], axis=0
+        ).flatten()
+        (
+            contact_targets,
+            contact_target_radius,
+            pose_target_sequence,
+            yaw_target_sequence,
+        ) = UnitreeGo2SeqJumpEnv.generate_jumping_sequence(com_pos, com_yaw, 0.1)
+        return (
+            contact_targets,
+            contact_target_radius,
+            pose_target_sequence,
+            yaw_target_sequence,
+        )
+
+    def update_viewer(self, viewer):
+        cnt = viewer.user_scn.ngeom
+        for i in range(self._contact_targets.shape[0]):
+            for j in range(4):
+                color = np.array([0.0, 1.0, 0.0, 0.5])
+                mujoco.mjv_initGeom(
+                    viewer.user_scn.geoms[cnt],
+                    type=mujoco.mjtGeom.mjGEOM_CYLINDER,
+                    size=np.array([self._contact_target_radius[i, j], 0.01]),
+                    rgba=color,
+                    pos=self._contact_targets[i, j],
+                    mat=np.eye(3).flatten(),
+                )
+                cnt += 1
+
+
 brax_envs.register_environment("unitree_go2_walk", UnitreeGo2Env)
+brax_envs.register_environment("unitree_go2_seq_jump", UnitreeGo2SeqJumpEnv)

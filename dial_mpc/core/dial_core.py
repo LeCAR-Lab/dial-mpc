@@ -204,6 +204,7 @@ def main():
     examples = [
         "unitree_h1_jog",
         "unitree_go2_trot",
+        "unitree_go2_seq_jump",
     ]
 
     if args.list_examples:
@@ -222,7 +223,9 @@ def main():
 
     # find env config
     env_config_type = dial_envs.get_config(dial_config.env_name)
-    env_config = load_dataclass_from_dict(env_config_type, config_dict)
+    env_config = load_dataclass_from_dict(
+        env_config_type, config_dict, convert_list_to_array=True
+    )
 
     print(emoji.emojize(":rocket:") + "Creating environment")
     env = brax_envs.get_environment(dial_config.env_name, config=env_config)

@@ -231,7 +231,9 @@ def main(args=None):
     config_dict = yaml.safe_load(open(args.config))
     dial_config = load_dataclass_from_dict(DialConfig, config_dict)
     env_config_type = dial_envs.get_config(dial_config.env_name)
-    env_config = load_dataclass_from_dict(env_config_type, config_dict)
+    env_config = load_dataclass_from_dict(
+        env_config_type, config_dict, convert_list_to_array=True
+    )
     env = brax_envs.get_environment(dial_config.env_name, config=env_config)
 
     mbd_publisher = MBDPublisher(env, env_config, dial_config)

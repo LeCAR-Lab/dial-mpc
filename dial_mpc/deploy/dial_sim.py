@@ -295,7 +295,9 @@ def main(args=None):
     args = parser.parse_args(args)
     config_dict = yaml.safe_load(open(args.config, "r"))
     sim_config = load_dataclass_from_dict(DialSimConfig, config_dict)
-    env_config = load_dataclass_from_dict(BaseEnvConfig, config_dict)
+    env_config = load_dataclass_from_dict(
+        BaseEnvConfig, config_dict, convert_list_to_array=True
+    )
     dial_config = load_dataclass_from_dict(DialConfig, config_dict)
     mujoco_env = DialSim(sim_config, env_config, dial_config)
 

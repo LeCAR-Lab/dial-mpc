@@ -1,12 +1,12 @@
 # DIAL-MPC
 seed: 0
-output_dir: unitree_go2_trot
+output_dir: unitree_go2_seq_jump
 n_steps: 400
 
-env_name: unitree_go2_walk
+env_name: unitree_go2_seq_jump
 Nsample: 2048
-Hsample: 16
-Hnode: 4
+Hsample: 20
+Hnode: 5
 Ndiffuse: 2
 Ndiffuse_init: 10
 temp_sample: 0.05
@@ -21,11 +21,15 @@ leg_control: torque
 action_scale: 1.0
 
 # Go2
-default_vx: 1.0
-default_vy: 0.0
-default_vyaw: 0.0
-ramp_up_time: 1.0
-gait: trot
+jump_dt: 1.0
+pose_target_sequence: [
+  [0.0, 0.0, 0.27],
+  [0.4, 0.0, 0.27],
+  [0.8, 0.0, 0.27],
+  [1.2, 0.0, 0.27],
+  [1.6, 0.0, 0.27],
+]
+yaw_target_sequence: [0.0, 0.0, 0.0, 0.0, 0.0]
 
 # Sim
 sim_model_path: /home/haoru/research/dial/dial-mpc/dial_mpc/models/unitree_go2/scene.xml
