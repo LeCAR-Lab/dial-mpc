@@ -37,23 +37,30 @@ link_mapper = [
 
 def import_animation():
     dt = 0.02
-    Hsample = 80
+    Hsample = 40
     Nsample = 8
     Ndiffuse = 4
     Ndownsample = 10 # trajectory downsample rate
     Hdownsample = 3 # frame downsample rate
 
-    exp_idx = 0
-    exp_name = "h1_data_jogging"
-    Hrender_start, Hrender_end = [0, 310]
+    exp_idx = 1
+    exp_name = [
+        "jogging",
+        "push_light",
+    ][exp_idx]  
+    file_name = f"h1_data_{exp_name}"
+    Hrender_start, Hrender_end = [
+        [0, 310],
+        [0, 300-40],
+    ][exp_idx]
     Hrender = Hrender_end - Hrender_start
 
     file_prefix = r"C:\Users\JC-Ba\Downloads\code\dial-mpc\data"
 
-    link_pos_original = np.load(f"{file_prefix}\{exp_name}_xpos.npy")
-    link_quat_wxyz_original = np.load(f"{file_prefix}\{exp_name}_xquat.npy")
+    link_pos_original = np.load(f"{file_prefix}\{file_name}_xpos.npy")
+    link_quat_wxyz_original = np.load(f"{file_prefix}\{file_name}_xquat.npy")
     xsite_feet_original = np.load(
-        f"{file_prefix}\{exp_name}_xsite_feet.npy"
+        f"{file_prefix}\{file_name}_xsite_feet.npy"
     )
     link_quat_xyzw_original = link_quat_wxyz_original[:, :, [1, 2, 3, 0]]
     # Nlink = link_pos.shape[1]
