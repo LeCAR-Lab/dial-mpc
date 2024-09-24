@@ -15,7 +15,7 @@
 
 This repository contains the code (simulation and real-world experiments with minimum setup) for the paper "Full-Order Sampling-Based MPC for Torque-Level Locomotion Control via Diffusion-Style Annealing".
 
-DIAL-MPC is a novel sampling-based MPC framework for legged robot **full-order torque-level** control with both precision and agility in a **training-free** manner. 
+DIAL-MPC is a novel sampling-based MPC framework for legged robot ***full-order torque-level*** control with both precision and agility in a ***training-free*** manner. 
 DIAL-MPC is designed to be simple and flexible, with minimal requirements for specific reward design and dynamics model.
 That means you can test out the controller in a plug-and-play manner with minimum setup.
 
@@ -35,7 +35,6 @@ pip3 install -e .
 ### Install `dial-mpc`
 
 ```bash
-cd ~
 git clone https://github.com/LeCar-Lab/dial-mpc.git --depth 1
 cd dial-mpc
 pip3 install -e .
@@ -143,10 +142,15 @@ We provide a asynchronous simulation environment for driver-in-the-loop testing 
 
 #### Sim2real test
 
+### Rendering the results
+
+If you want better visualization, you can check out the `render` branch for the blender visualization examples. 
+
 ## Acknowledgements
 
 * This codebase's environment and RL implementation is built on top of [Brax](https://github.com/google/brax).
 * We use [Mujoco MJX](https://github.com/deepmind/mujoco) for the physics engine.
+* Controller design and implementation is inspired by [Model-based Diffusion](https://github.com/LeCAR-Lab/model-based-diffusion)
 
 
 ## BibTeX
