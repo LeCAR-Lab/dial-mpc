@@ -2,7 +2,7 @@ from pathlib import Path
 from openai import OpenAI
 client = OpenAI()
 
-speech_file_path = Path(__file__).parent / "results/idea.mp3"
+speech_file_path = Path(__file__).parent / "voice/idea.mp3"
 response = client.audio.speech.create(
   model="tts-1-hd",
   voice="nova",

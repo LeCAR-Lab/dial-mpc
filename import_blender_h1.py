@@ -107,7 +107,7 @@ def import_animation():
                 break
 
     # generate trajectory to visualize
-    # TODO: replace it with the actual trajectory
+    # NOTE: please replace it with the actual trajectory
     xssss_torso = np.zeros((Hrender, Ndiffuse, Nsample, Hsample, 3)) 
     xssss_feet = np.zeros((Hrender, Ndiffuse, Nsample, Hsample, 2, 3))
     for i in range(Hrender):
