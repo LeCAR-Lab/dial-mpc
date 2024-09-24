@@ -1,6 +1,27 @@
-# dial-mpc
+# DIAL-MPC: Diffusion-Inspired Annealing For Legged MPC
 
-## Install `unitree_sdk2_python`
+<div align="center">
+
+[[Website]](https://lecar-lab.github.io/dial-mpc/)
+[[PDF]](https://drive.google.com/file/d/1Z39MCvnl-Tdraon4xAj37iQYLsUh5UOV/view?usp=sharing)
+[[Arxiv(Coming Soon)]](https://arxiv.org/)
+
+[<img src="https://img.shields.io/badge/Backend-Jax-red.svg"/>](https://github.com/google/jax)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+<img src="assets/joint.gif" width="600px"/>
+
+</div>
+
+This repository contains the code (simulation and real-world experiments with minimum setup) for the paper "Full-Order Sampling-Based MPC for Torque-Level Locomotion Control via Diffusion-Style Annealing".
+
+DIAL-MPC is a novel sampling-based MPC framework for legged robot **full-order torque-level** control with both precision and agility in a **training-free** manner. 
+DIAL-MPC is designed to be simple and flexible, with minimal requirements for specific reward design and dynamics model.
+That means you can test out the controller in a plug-and-play manner with minimum setup.
+
+## Setup
+
+### Install `unitree_sdk2_python`
 Execute the following commands in the terminal:
 
 ```bash
@@ -11,7 +32,20 @@ cd unitree_sdk2_python
 pip3 install -e .
 ```
 
-## Run Examples
+### Install `dial-mpc`
+
+```bash
+cd ~
+git clone https://github.com/LeCar-Lab/dial-mpc.git --depth 1
+cd dial-mpc
+pip3 install -e .
+```
+
+## Usage
+
+### Simulation
+
+#### Run Examples
 
 List available examples:
 
@@ -27,7 +61,7 @@ dial-mpc --example unitree_h1_jog
 
 After rollout completes, go to `127.0.0.1:5000` to visualize the rollouts.
 
-## Contributing New Environment
+#### Contributing New Environment
 
 1. Import the base environment and config
 2. Implement required functions
@@ -100,4 +134,25 @@ action_scale: 1.0
 # My Env
 arg1: 2.0
 arg2: "test_2"
+```
+### Real-World Experiments
+
+#### Sim2sim test
+
+We provide a asynchronous simulation environment for driver-in-the-loop testing with dynamic mismatch and control latency. It is recommended to test the controller with the real robot after the sim2sim test.
+
+#### Sim2real test
+
+## Acknowledgements
+
+* This codebase's environment and RL implementation is built on top of [Brax](https://github.com/google/brax).
+* We use [Mujoco MJX](https://github.com/deepmind/mujoco) for the physics engine.
+
+
+## BibTeX
+
+If you find this code useful for your research, please consider citing:
+
+```bibtex
+
 ```
