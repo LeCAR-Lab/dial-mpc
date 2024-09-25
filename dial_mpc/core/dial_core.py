@@ -20,6 +20,7 @@ import brax.envs as brax_envs
 
 import dial_mpc.envs as dial_envs
 from dial_mpc.utils.io_utils import get_example_path, load_dataclass_from_dict
+from dial_mpc.examples import examples
 
 plt.style.use("science")
 
@@ -200,14 +201,6 @@ def main():
     config_or_example.add_argument("--example", type=str, default=None)
     config_or_example.add_argument("--list-examples", action="store_true")
     args = parser.parse_args()
-
-    examples = [
-        "unitree_h1_jog",
-        "unitree_h1_push_crate",
-        "unitree_go2_trot",
-        "unitree_go2_seq_jump",
-        "unitree_go2_crate_climb",
-    ]
 
     if args.list_examples:
         print("Examples:")

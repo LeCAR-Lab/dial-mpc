@@ -778,7 +778,7 @@ class UnitreeGo2CrateEnv(UnitreeGo2Env):
             + reward_energy * 0.0000
             + reward_pitch * 0.0
             + reward_roll * 0.0
-            + reward_contact * 0.2
+            + reward_contact * 0.1
             - penalty_contact * 0.0
         )
         # jax.debug.print("{geom}", geom=pipeline_state.contact.geom)
