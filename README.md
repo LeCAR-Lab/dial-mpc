@@ -19,18 +19,12 @@ DIAL-MPC is a novel sampling-based MPC framework for legged robot ***full-order 
 DIAL-MPC is designed to be simple and flexible, with minimal requirements for specific reward design and dynamics model.
 That means you can test out the controller in a plug-and-play manner with minimum setup.
 
-## Setup
+## News
 
-### Install `unitree_sdk2_python`
-Execute the following commands in the terminal:
+- 09/25/2024: 🎉 DIAL-MPC is released with open-source codes! Sim2Real pipeline coming soon!
+- 09/15/2024: DIAL-MPC is under review.
 
-```bash
-cd ~
-sudo apt install python3-pip
-git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
-cd unitree_sdk2_python
-pip3 install -e .
-```
+## Simulation Setup
 
 ### Install `dial-mpc`
 
@@ -40,9 +34,7 @@ cd dial-mpc
 pip3 install -e .
 ```
 
-## Usage
-
-### Simulation
+## Synchronous Simulation
 
 #### Run Examples
 
@@ -60,15 +52,55 @@ dial-mpc --example unitree_h1_jog
 
 After rollout completes, go to `127.0.0.1:5000` to visualize the rollouts.
 
-#### Contributing New Environment
+## Asynchronous Simulation
 
-1. Import the base environment and config
-2. Implement required functions
-3. Register environment
-4. Configure config file
-5. Run with `dial-mpc --config <config.yaml>`
+The asynchronous simulation is meant to test the algorithm before Sim2Real.
 
-Example environment:
+List available examples:
+
+```bash
+dial-mpc-sim --list-examples
+```
+
+Run an example:
+
+In terminal 1, run
+
+```bash
+dial-mpc-sim --example unitree_go2_seq_jump_deploy
+```
+This will open a mujoco visualization window.
+
+In terminal 2, run
+
+```bash
+dial-mpc-plan --example unitree_go2_seq_jump_deploy
+```
+
+
+## Deploy in Real
+
+🚧 Check back in late Sep. - early Oct. 2024 for real-world deployment pipeline on Unitree GO2.
+<!-- ### Install `unitree_sdk2_python`
+Execute the following commands in the terminal:
+
+```bash
+cd ~
+sudo apt install python3-pip
+git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
+cd unitree_sdk2_python
+pip3 install -e .
+``` -->
+
+## Writing Custom Environment
+
+1. If custom robot model is needed, Store it in `dial_mpc/models/my_model/my_model.xml`.
+2. Import the base environment and config.
+3. Implement required functions.
+4. Register environment.
+5. Configure config file.
+
+Example environment file (`my_env.py`):
 
 ```python
 from dataclasses import dataclass
@@ -105,7 +137,7 @@ brax_envs.register_environment("my_env_name", MyEnv)
 dial_envs.register_config("my_env_name", MyEnvConfig)
 ```
 
-Example configuration file:
+Example configuration file (`my_env.yaml`):
 ```yaml
 # DIAL-MPC
 seed: 0
@@ -134,23 +166,32 @@ action_scale: 1.0
 arg1: 2.0
 arg2: "test_2"
 ```
-### Real-World Experiments
 
-#### Sim2sim test
+Run the following command to use the custom environment in synchronous simulation. Make sure that `my_env.py` is in the same directory from which the command is run.
 
-We provide a asynchronous simulation environment for driver-in-the-loop testing with dynamic mismatch and control latency. It is recommended to test the controller with the real robot after the sim2sim test.
+```bash
+dial-mpc --config my_env.yaml --custom-env my_env
+```
 
-#### Sim2real test
+You can also run asynchronous simulation with the custom environment:
 
-### Rendering the results
+```bash
+# Terminal 1
+dial-mpc-sim --config my_env.yaml --custom-env my_env
 
-If you want better visualization, you can check out the `render` branch for the blender visualization examples. 
+# Terminal 2
+dial-mpc-plan --config my_env.yaml --custom-env my_env
+```
+
+## Rendering Rollouts in Blender
+
+If you want better visualization, you can check out the `render` branch for the Blender visualization examples. 
 
 ## Acknowledgements
 
 * This codebase's environment and RL implementation is built on top of [Brax](https://github.com/google/brax).
 * We use [Mujoco MJX](https://github.com/deepmind/mujoco) for the physics engine.
-* Controller design and implementation is inspired by [Model-based Diffusion](https://github.com/LeCAR-Lab/model-based-diffusion)
+* Controller design and implementation is inspired by [Model-based Diffusion](https://github.com/LeCAR-Lab/model-based-diffusion).
 
 
 ## BibTeX
