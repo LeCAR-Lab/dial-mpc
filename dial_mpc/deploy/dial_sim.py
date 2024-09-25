@@ -15,14 +15,20 @@ import mujoco.viewer
 
 from dial_mpc.envs.base_env import BaseEnvConfig
 from dial_mpc.core.dial_core import DialConfig
-from dial_mpc.utils.io_utils import load_dataclass_from_dict
+from dial_mpc.utils.io_utils import (
+    load_dataclass_from_dict,
+    get_model_path,
+    get_example_path,
+)
+from dial_mpc.examples import deploy_examples
 
 plt.style.use(["science"])
 
 
 @dataclass
 class DialSimConfig:
-    sim_model_path: str
+    robot_name: str
+    scene_name: str
     sim_leg_control: str
     plot: bool
     record: bool
@@ -52,7 +58,9 @@ class DialSim:
         self.kp = env_config.kp
         self.kd = env_config.kd
         self.leg_control = sim_config.sim_leg_control
-        self.mj_model = mujoco.MjModel.from_xml_path(sim_config.sim_model_path)
+        self.mj_model = mujoco.MjModel.from_xml_path(
+            get_model_path(sim_config.robot_name, sim_config.scene_name).as_posix()
+        )
         self.mj_model.opt.timestep = self.sim_dt
         self.mj_data = mujoco.MjData(self.mj_model)
         self.q_history = np.zeros((self.n_acts, self.mj_model.nu))
@@ -289,11 +297,37 @@ class DialSim:
 def main(args=None):
     art.tprint("LeCAR @ CMU\nDIAL-MPC\nSIMULATOR", font="big", chr_ignore=True)
     parser = argparse.ArgumentParser()
-    parser.add_argument(
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
         "--config", type=str, default="config.yaml", help="Path to config file"
     )
+    group.add_argument(
+        "--example",
+        type=str,
+        default=None,
+        help="Example to run",
+    )
+    group.add_argument(
+        "--list-examples",
+        action="store_true",
+        help="List available examples",
+    )
     args = parser.parse_args(args)
-    config_dict = yaml.safe_load(open(args.config, "r"))
+
+    if args.list_examples:
+        print("Available examples:")
+        for example in deploy_examples:
+            print(f"  - {example}")
+        return
+    if args.example is not None:
+        if args.example not in deploy_examples:
+            print(f"Example {args.example} not found.")
+            return
+        config_dict = yaml.safe_load(
+            open(get_example_path(args.example + ".yaml"), "r")
+        )
+    else:
+        config_dict = yaml.safe_load(open(args.config, "r"))
     sim_config = load_dataclass_from_dict(DialSimConfig, config_dict)
     env_config = load_dataclass_from_dict(
         BaseEnvConfig, config_dict, convert_list_to_array=True

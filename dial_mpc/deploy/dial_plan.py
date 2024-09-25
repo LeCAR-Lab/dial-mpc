@@ -8,6 +8,7 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 import art
+import emoji
 
 import functools
 from functools import partial
@@ -26,7 +27,12 @@ from brax.base import Contact, Motion, System, Transform
 import dial_mpc.envs as dial_envs
 from dial_mpc.core.dial_core import DialConfig, MBDPI
 from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
-from dial_mpc.utils.io_utils import load_dataclass_from_dict
+from dial_mpc.utils.io_utils import (
+    load_dataclass_from_dict,
+    get_model_path,
+    get_example_path,
+)
+from dial_mpc.examples import deploy_examples
 
 # Tell XLA to use Triton GEMM, this improves steps/sec by ~30% on some GPUs
 xla_flags = os.environ.get("XLA_FLAGS", "")
@@ -224,11 +230,39 @@ class MBDPublisher:
 def main(args=None):
     art.tprint("LeCAR @ CMU\nDIAL-MPC\nPLANNER", font="big", chr_ignore=True)
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="config.yaml")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
+        "--config", type=str, default="config.yaml", help="Path to config file"
+    )
+    group.add_argument(
+        "--example",
+        type=str,
+        default=None,
+        help="Example to run",
+    )
+    group.add_argument(
+        "--list-examples",
+        action="store_true",
+        help="List available examples",
+    )
     args = parser.parse_args(args)
 
-    print("Creating environment")
-    config_dict = yaml.safe_load(open(args.config))
+    if args.list_examples:
+        print("Available examples:")
+        for example in deploy_examples:
+            print(f"  - {example}")
+        return
+    if args.example is not None:
+        if args.example not in deploy_examples:
+            print(f"Example {args.example} not found.")
+            return
+        config_dict = yaml.safe_load(
+            open(get_example_path(args.example + ".yaml"), "r")
+        )
+    else:
+        config_dict = yaml.safe_load(open(args.config, "r"))
+
+    print(emoji.emojize(":rocket:") + "Creating environment")
     dial_config = load_dataclass_from_dict(DialConfig, config_dict)
     env_config_type = dial_envs.get_config(dial_config.env_name)
     env_config = load_dataclass_from_dict(
