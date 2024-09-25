@@ -2,6 +2,8 @@ import os
 from dataclasses import dataclass
 import time
 from multiprocessing import shared_memory
+import importlib
+import sys
 
 import yaml
 import argparse
@@ -245,7 +247,17 @@ def main(args=None):
         action="store_true",
         help="List available examples",
     )
+    parser.add_argument(
+        "--custom-env",
+        type=str,
+        default=None,
+        help="Custom environment to import dynamically",
+    )
     args = parser.parse_args(args)
+
+    if args.custom_env is not None:
+        sys.path.append(os.getcwd())
+        importlib.import_module(args.custom_env)
 
     if args.list_examples:
         print("Available examples:")

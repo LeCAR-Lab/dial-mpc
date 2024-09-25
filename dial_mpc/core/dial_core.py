@@ -1,6 +1,8 @@
 import os
 import time
 from dataclasses import dataclass
+import importlib
+import sys
 
 import yaml
 import argparse
@@ -200,6 +202,12 @@ def main():
     config_or_example.add_argument("--config", type=str, default=None)
     config_or_example.add_argument("--example", type=str, default=None)
     config_or_example.add_argument("--list-examples", action="store_true")
+    parser.add_argument(
+        "--custom-env",
+        type=str,
+        default=None,
+        help="Custom environment to import dynamically",
+    )
     args = parser.parse_args()
 
     if args.list_examples:
@@ -207,6 +215,10 @@ def main():
         for example in examples:
             print(f"  {example}")
         return
+
+    if args.custom_env is not None:
+        sys.path.append(os.getcwd())
+        importlib.import_module(args.custom_env)
 
     if args.example is not None:
         config_dict = yaml.safe_load(open(get_example_path(args.example + ".yaml")))
