@@ -24,6 +24,8 @@ That means you can test out the controller in a plug-and-play manner with minimu
 - 09/25/2024: 🎉 DIAL-MPC is released with open-source codes! Sim2Real pipeline coming soon!
 - 09/15/2024: DIAL-MPC is under review.
 
+https://github.com/user-attachments/assets/71c2d67d-1552-4966-b6fb-e58ed2e569d6
+
 ## Simulation Setup
 
 ### Install `dial-mpc`
