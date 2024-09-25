@@ -158,5 +158,13 @@ If you want better visualization, you can check out the `render` branch for the 
 If you find this code useful for your research, please consider citing:
 
 ```bibtex
-
+@misc{xue2024fullordersamplingbasedmpctorquelevel,
+      title={Full-Order Sampling-Based MPC for Torque-Level Locomotion Control via Diffusion-Style Annealing}, 
+      author={Haoru Xue and Chaoyi Pan and Zeji Yi and Guannan Qu and Guanya Shi},
+      year={2024},
+      eprint={2409.15610},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO},
+      url={https://arxiv.org/abs/2409.15610}, 
+}
 ```
