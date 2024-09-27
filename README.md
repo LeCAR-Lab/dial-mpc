@@ -15,14 +15,13 @@
 
 This repository contains the code (simulation and real-world experiments with minimum setup) for the paper "Full-Order Sampling-Based MPC for Torque-Level Locomotion Control via Diffusion-Style Annealing".
 
-DIAL-MPC is a novel sampling-based MPC framework for legged robot ***full-order torque-level*** control with both precision and agility in a ***training-free*** manner. 
-DIAL-MPC is designed to be simple and flexible, with minimal requirements for specific reward design and dynamics model.
+DIAL-MPC is a sampling-based MPC framework for legged robot ***full-order torque-level*** control with both precision and agility in a ***training-free*** manner. 
+DIAL-MPC is designed to be simple and flexible, with minimal requirements for specific reward design and dynamics model. It directly samples and rolls out in physics-based simulations (``Brax``) and does not require reduced-order modeling, linearization, convexification, or predefined contact sequences.
 That means you can test out the controller in a plug-and-play manner with minimum setup.
 
 ## News
 
 - 09/25/2024: 🎉 DIAL-MPC is released with open-source codes! Sim2Real pipeline coming soon!
-- 09/15/2024: DIAL-MPC is under review.
 
 https://github.com/user-attachments/assets/f2e5f26d-69ac-4478-872e-26943821a218
 
@@ -82,7 +81,7 @@ dial-mpc-plan --example unitree_go2_seq_jump_deploy
 
 ## Deploy in Real
 
-🚧 Check back in late Sep. - early Oct. 2024 for real-world deployment pipeline on Unitree GO2.
+🚧 Check back in late Sep. - early Oct. 2024 for real-world deployment pipeline on Unitree Go2.
 <!-- ### Install `unitree_sdk2_python`
 Execute the following commands in the terminal:
 
