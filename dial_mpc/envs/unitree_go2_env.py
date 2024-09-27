@@ -228,7 +228,7 @@ class UnitreeGo2Env(BaseEnv):
             reward_gaits * 0.1
             + reward_air_time * 0.0
             + reward_pos * 0.0
-            + reward_upright * 0.1
+            + reward_upright * 0.5
             + reward_yaw * 0.3
             # + reward_pose * 0.0
             + reward_vel * 1.0

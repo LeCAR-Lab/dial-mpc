@@ -21,7 +21,7 @@ leg_control: torque
 action_scale: 1.0
 
 # Go2
-default_vx: 1.0
+default_vx: 0.8
 default_vy: 0.0
 default_vyaw: 0.0
 ramp_up_time: 1.0
