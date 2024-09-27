@@ -214,10 +214,8 @@
                             real-time optimal control using full-order dynamics models
                             for legged robots is challenging. Therefore, Nonlinear Model
                             Predictive Control (NMPC) approaches are often limited to
-                            reduced-order models. Sampling-based MPC has shown poten-
-                            tial in nonconvex even discontinuous problems, but often yields
-                            suboptimal solutions with high variance, which limits its appli-
-                            cations in high-dimensional locomotion. This work introduces
+                            reduced-order models or local approximations of full models. Sampling-based MPC has shown potential in nonconvex even discontinuous problems, but often yields
+                            suboptimal solutions with high variance, which limits its applications in high-dimensional locomotion. This work introduces
                             DIAL-MPC (Diffusion-Inspired Annealing for Legged MPC),
                             a sampling-based MPC framework with a novel diffusion-style
                             annealing process. Such an annealing process is supported by
@@ -232,7 +230,7 @@
                                 any training</b>. In particular, DIAL-MPC enables precise real-
                             world quadrupedal jumping with payload. To the best of our
                             knowledge, DIAL-MPC is the first training-free method that
-                            optimizes over full-order quadruped dynamics in real-time.
+                            optimizes directly over full-order quadruped dynamics in real-time.
                         </p>
                     </div>
                 </div>
@@ -271,8 +269,9 @@
                             <b>
                                 DIAL-MPC is a <u>training-free</u> full-order torque-level legged robot controller:
                             </b>
-                            DIAL-MPC is a MPC framework that can optimize over full-order legged robot dynamics in
-                            real-time without heavy assumption on dynamics and cost functions. (i.e. plug-and-play with any model and cost function)
+                            DIAL-MPC is an MPC framework that can optimize over full-order legged robot dynamics in
+                            real-time without heavy assumptions on dynamics and cost functions (i.e., plug-and-play with any model and cost function). 
+                            It doesn't require reduced-order modeling, linearization, convexification, or predefined contact sequences.
                             To our knowledge, this is the first framework achieving both real-time flexibility
                             and RL-level agility in legged locomotion.
                         </p>
@@ -327,9 +326,10 @@
                         <b>
                             MPPI is a single-stage diffusion process.
                         </b>
-                        Given the following non-convex cost function, MPPI aims to sample from p0.
-                        Our theoretical analysis reveals that MPPI is a single-stage diffusion process, where the score
-                        function is approximated with Monte Carlo sampling.
+                        Given the following non-convex cost function, MPPI aims to optimize over p0.
+                        Our theoretical analysis reveals that MPPI is a single-stage diffusion process, 
+                        i.e., each step of MPPI can be viewed as an ascent step on a noise-conditioned score function of p0 convoluted with the sampling kernel,
+                        where the score function is approximated with Monte Carlo sampling.
                     </p>
                     <figure class="image is-flex is-justify-content-center">
                         <img src="./static/images/demo_task.png" alt="Demo Task" style="max-width: 50%;">
@@ -338,7 +338,7 @@
                         <b>
                             MPPI suffers from suboptimal solutions or high variance.
                         </b>
-                        Due to the sparsity and non-smooth nature of p0, MPPI either optimize a over-smoothed function or a highly non-smooth function, leading to suboptimal solutions or high variance. Diffusion process overcomes this problem by iteratively refining solutions over a series of smoothing levels.
+                        Due to the sparsity and non-smooth nature of p0, MPPI either optimize a over-smoothed function (sampling kernel too large) or a highly non-smooth function (sampling kernel too small), leading to suboptimal solutions or high variance. Diffusion process overcomes this problem by iteratively refining solutions over a series of smoothing levels.
                     </p>
                     <figure class="image is-flex is-justify-content-center">
                         <img src="./static/images/demo_forward.png" alt="DIAL-MPC" style="max-width: 50%;">
@@ -371,8 +371,8 @@
                             <b>
                                 Compared with RL:
                             </b>
-                            DIAL-MPC use a very similar sampling-based method as RL. But DIAL-MPC is trainig-free and
-                            can achieve higher precision control thanks to its diffusion-style annealing process.
+                            DIAL-MPC is trainig-free and
+                            can achieve higher precision control in tasks that require test-time zero-shot adaptation (e.g., robots with payload), thanks to its model-based nature and diffusion-style annealing process.
                         </p>
                         <p>
                             <b>
@@ -386,7 +386,7 @@
                                 Compared with Nonlinear MPC:
                             </b>
                             DIAL-MPC can handle full-order dynamics and arbitrary cost functions in a plug-and-play
-                            manner, while existing MPC methods require high-order models and specialized cost functions.
+                            manner, while existing MPC methods require either reduced-order modeling, specialized cost functions, linearization/convexification, or predefined contact sequences.
                         </p>
                         <table border="1">
                             <tr>
