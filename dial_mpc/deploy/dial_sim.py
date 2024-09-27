@@ -15,8 +15,8 @@ import art
 import mujoco
 import mujoco.viewer
 
-from dial_mpc.envs.base_env import BaseEnvConfig
-from dial_mpc.core.dial_core import DialConfig
+from dial_mpc.config.base_env_config import BaseEnvConfig
+from dial_mpc.core.dial_config import DialConfig
 from dial_mpc.utils.io_utils import (
     load_dataclass_from_dict,
     get_model_path,
@@ -57,8 +57,6 @@ class DialSim:
         self.n_frame = int(self.ctrl_dt / self.sim_dt)
         self.t = 0.0
         self.sync_mode = sim_config.sync_mode
-        self.kp = env_config.kp
-        self.kd = env_config.kd
         self.leg_control = sim_config.sim_leg_control
         self.mj_model = mujoco.MjModel.from_xml_path(
             get_model_path(sim_config.robot_name, sim_config.scene_name).as_posix()
@@ -341,9 +339,7 @@ def main(args=None):
     else:
         config_dict = yaml.safe_load(open(args.config, "r"))
     sim_config = load_dataclass_from_dict(DialSimConfig, config_dict)
-    env_config = load_dataclass_from_dict(
-        BaseEnvConfig, config_dict, convert_list_to_array=True
-    )
+    env_config = load_dataclass_from_dict(BaseEnvConfig, config_dict)
     dial_config = load_dataclass_from_dict(DialConfig, config_dict)
     mujoco_env = DialSim(sim_config, env_config, dial_config)
 
