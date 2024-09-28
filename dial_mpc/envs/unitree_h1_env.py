@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, Sequence, Tuple, Union, List
 
 import numpy as np
@@ -24,7 +24,7 @@ from dial_mpc.utils.io_utils import get_model_path
 
 @dataclass
 class UnitreeH1WalkEnvConfig(BaseEnvConfig):
-    kp: Union[float, jax.Array] = jnp.array(
+    kp: Union[float, jax.Array] = field(default_factory=lambda: jnp.array(
         [
             200.0,
             200.0,
@@ -46,8 +46,8 @@ class UnitreeH1WalkEnvConfig(BaseEnvConfig):
             60.0,
             60.0,  # right shoulder, elbow
         ]
-    )
-    kd: Union[float, jax.Array] = jnp.array(
+    ))
+    kd: Union[float, jax.Array] = field(default_factory=lambda: jnp.array(
         [
             5.0,
             5.0,
@@ -69,7 +69,7 @@ class UnitreeH1WalkEnvConfig(BaseEnvConfig):
             1.5,
             1.5,  # right shoulder, elbow
         ]
-    )
+    ))
     default_vx: float = 1.0
     default_vy: float = 0.0
     default_vyaw: float = 0.0
