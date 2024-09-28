@@ -1,0 +1,102 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: 'DIAL-MPC: Diffusion-Inspired Annealing For Legged MPC'
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Haoru
+    family-names: Xue
+    email: haoru-xue@berkeley.edu
+    affiliation: University of California Berkeley
+    orcid: 'https://orcid.org/0009-0009-1195-2254'
+  - given-names: Chaoyi
+    family-names: Pan
+    email: chaoyip@andrew.cmu.edu
+    affiliation: Carnegie Mellon University
+  - given-names: Zeji
+    family-names: Yi
+    email: zejiy@andrew.cmu.edu
+    affiliation: Carnegie Mellon University
+  - given-names: Guannan
+    family-names: Qu
+    email: gqu@andrew.cmu.edu
+    affiliation: Carnegie Mellon University
+    orcid: 'https://orcid.org/0000-0002-5466-3550'
+  - given-names: Guanya
+    family-names: Shi
+    email: guanyas@andrew.cmu.edu
+    affiliation: Carnegie Mellon University
+    orcid: 'https://orcid.org/0000-0002-9075-3705'
+identifiers:
+  - type: doi
+    value: 10.48550/arXiv.2409.15610
+repository-code: 'https://github.com/LeCAR-Lab/dial-mpc'
+url: 'https://lecar-lab.github.io/dial-mpc/'
+abstract: >-
+  Due to high dimensionality and non-convexity, real-time
+  optimal control using full-order dynamics models for
+  legged robots is challenging. Therefore, Nonlinear Model
+  Predictive Control (NMPC) approaches are often limited to
+  reduced-order models. Sampling-based MPC has shown
+  potential in nonconvex even discontinuous problems, but
+  often yields suboptimal solutions with high variance,
+  which limits its applications in high-dimensional
+  locomotion. This work introduces DIAL-MPC
+  (Diffusion-Inspired Annealing for Legged MPC), a
+  sampling-based MPC framework with a novel diffusion-style
+  annealing process. Such an annealing process is supported
+  by the theoretical landscape analysis of Model Predictive
+  Path Integral Control (MPPI) and the connection between
+  MPPI and single-step diffusion. Algorithmically, DIAL-MPC
+  iteratively refines solutions online and achieves both
+  global coverage and local convergence. In quadrupedal
+  torque-level control tasks, DIAL-MPC reduces the tracking
+  error of standard MPPI by 13.4 times and outperforms
+  reinforcement learning (RL) policies by 50% in challenging
+  climbing tasks without any training. In particular,
+  DIAL-MPC enables precise real-world quadrupedal jumping
+  with payload. To the best of our knowledge, DIAL-MPC is
+  the first training-free method that optimizes over
+  full-order quadruped dynamics in real-time.
+keywords:
+  - mpc
+  - optimal control
+  - diffusion
+  - humanoid
+  - legged robot
+  - quadruped
+license: Apache-2.0
+preferred-citation:
+  type: generic
+  authors:
+    - given-names: Haoru
+      family-names: Xue
+      email: haoru-xue@berkeley.edu
+      affiliation: University of California Berkeley
+      orcid: 'https://orcid.org/0009-0009-1195-2254'
+    - given-names: Chaoyi
+      family-names: Pan
+      email: chaoyip@andrew.cmu.edu
+      affiliation: Carnegie Mellon University
+    - given-names: Zeji
+      family-names: Yi
+      email: zejiy@andrew.cmu.edu
+      affiliation: Carnegie Mellon University
+    - given-names: Guannan
+      family-names: Qu
+      email: gqu@andrew.cmu.edu
+      affiliation: Carnegie Mellon University
+      orcid: 'https://orcid.org/0000-0002-5466-3550'
+    - given-names: Guanya
+      family-names: Shi
+      email: guanyas@andrew.cmu.edu
+      affiliation: Carnegie Mellon University
+      orcid: 'https://orcid.org/0000-0002-9075-3705'
+  doi: 10.48550/arXiv.2409.15610
+  month: 9
+  year: 2024
+  title: Full-Order Sampling-Based MPC for Torque-Level Locomotion Control via Diffusion-Style Annealing
