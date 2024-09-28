@@ -96,7 +96,7 @@ preferred-citation:
       email: guanyas@andrew.cmu.edu
       affiliation: Carnegie Mellon University
       orcid: 'https://orcid.org/0000-0002-9075-3705'
-  doi: 10.48550/arXiv.2409.15610
+  url: https://arxiv.org/abs/2409.15610
   month: 9
   year: 2024
   title: Full-Order Sampling-Based MPC for Torque-Level Locomotion Control via Diffusion-Style Annealing
