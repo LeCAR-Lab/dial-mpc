@@ -30,8 +30,7 @@ https://github.com/user-attachments/assets/f2e5f26d-69ac-4478-872e-26943821a218
 ### Install `dial-mpc`
 
 > [!IMPORTANT]
-> 09/28/2024: User has reported issue in https://github.com/LeCAR-Lab/dial-mpc/issues/3 with Python 3.12.
-> We recommend Ubuntu >= 20.04 + Python == 3.10 + CUDA >= 12.3.
+> We recommend Ubuntu >= 20.04 + Python >= 3.10 + CUDA >= 12.3.
 > You can create a mamba (or conda) environment before proceeding.
 
 Our environment is Ubuntu 22.04 + Python 3.10 + CUDA 12.6.
