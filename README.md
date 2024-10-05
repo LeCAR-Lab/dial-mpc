@@ -43,6 +43,8 @@ pip3 install -e .
 
 ## Synchronous Simulation
 
+In this mode, the simulation will wait for DIAL-MPC to finish computing before stepping. It is ideal for debugging and doing tasks that are currently not real-time.
+
 #### Run Examples
 
 List available examples:
@@ -61,7 +63,9 @@ After rollout completes, go to `127.0.0.1:5000` to visualize the rollouts.
 
 ## Asynchronous Simulation
 
-The asynchronous simulation is meant to test the algorithm before Sim2Real.
+The asynchronous simulation is meant to test the algorithm before Sim2Real. The simulation rolls out in real-time (or scaled by `real_time_factor`). DIAL-MPC will encounter delay in this case.
+
+When DIAL-MPC cannot finish the compute in the time defined by `dt`, it will spit out warning. Slight overtime is accepetable as DIAL-MPC maintains a buffer of the previous step's solution and will play out the planned action sequence until the buffer runs out.
 
 List available examples:
 
@@ -85,19 +89,82 @@ dial-mpc-plan --example unitree_go2_seq_jump_deploy
 ```
 
 
-## Deploy in Real
+## Deploy in Real (Unitree Go2)
 
-🚧 Check back in late Sep. - early Oct. 2024 for real-world deployment pipeline on Unitree Go2.
-<!-- ### Install `unitree_sdk2_python`
-Execute the following commands in the terminal:
+### Overview
+
+The real-world deployment procedure is very similar to asynchronous simulation.
+
+We use `unitree_sdk2_python` to communicate with the robot directly via CycloneDDS.
+
+### State Estimation
+
+For state estimation, this proof-of-concept work requires external localization module to get base **position** and **velocity**.
+
+Support for ROS2 odometry message is built-in. You are responsible for publishing this message at at least 50 Hz and ideally over 100 Hz. We provide an odometry publisher for Vicon motion capture system in [`vicon_interface`](https://github.com/LeCAR-Lab/vicon_interface).
+
+We provide a simple ABI for custom localization modules, and you need to implement this in a python file in your workspace, should you consider not using ROS2.
+
+```python
+import numpy as np
+from dial_mpc.deploy.localization import register_plugin
+from dial_mpc.deploy.localization.base_plugin import BaseLocalizationPlugin
+
+class MyPlugin(BaseLocalizationPlugin):
+    def __init__(self, config):
+        pass
+
+    def get_state(self):
+        qpos = np.zeros(7)
+        qvel = np.zeros(6)
+        return np.concatenate([qpos, qvel])
+
+register_plugin('custom_plugin', plugin_cls=custom_plugin.CustomPlugin)
+```
+
+> [!CAUTION]
+> All velocities in ROS2 odometry message **must** be in **body frame** of the base to conform to [ROS odometry message definition](https://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html). However, when writing custom localization plugin, velocities should be reported in **world frame**. Under the hood, the built-in ROS2 odometry plugin converts the body frame velocities to world frame.
+
+Localization plugin can be changed in the configuration file.
+
+### Installing `unitree_sdk2_python`
+
+> [!NOTE]
+> If you are already using ROS2 with Cyclone DDS according to [ROS2 documentation on Cyclone DDS](https://docs.ros.org/en/humble/Installation/DDS-Implementations/Working-with-Eclipse-CycloneDDS.html), you don't have to install Cyclone DDS as suggested by `unitree_sdk2_python`.
+
+Follow the instructions in [`unitree_sdk2_python`](https://github.com/unitreerobotics/unitree_sdk2_python).
+
+### Starting the Robot
+
+Follow the [official Unitree documentation](https://support.unitree.com/home/en/developer/Quick_start) to disable sports mode on Go2. Lay the robot flat on the ground like shown.
+
+<div style="text-align: center;">
+    <img src="images/go2.png" alt="Unitree Go2 laying flat on the ground." style="width:50%;">
+</div>
+
+### Running the Robot
+
+List available examples:
 
 ```bash
-cd ~
-sudo apt install python3-pip
-git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
-cd unitree_sdk2_python
-pip3 install -e .
-``` -->
+dial-mpc-real --list-examples
+```
+
+Run an example:
+
+In terminal 1, run
+
+```bash
+# source /opt/ros/<ros-distro>/setup.bash # if using ROS2
+dial-mpc-real --example unitree_go2_seq_jump_deploy
+```
+This will open a mujoco visualization window. Verify that the robot states match the real world and are updating.
+
+In terminal 2, run
+
+```bash
+dial-mpc-plan --example unitree_go2_seq_jump_deploy
+```
 
 ## Writing Custom Environment
 
