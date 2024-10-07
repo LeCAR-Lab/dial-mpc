@@ -1,26 +1,56 @@
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 
 from dial_mpc.deploy.localization.base_plugin import BaseLocalizationPlugin
 
+
 class ROS2OdometryPlugin(BaseLocalizationPlugin, Node):
     def __init__(self, config):
         super().__init__(config)
-        Node.__init__(self, 'ros2_odom_plugin')
+        Node.__init__(self, "ros2_odom_plugin")
         self.subscription = self.create_subscription(
-            Odometry,
-            'odometry',
-            self.odom_callback,
-            1
+            Odometry, config["odom_topic"], self.odom_callback, 1
         )
 
         self.qpos = None
         self.qvel = None
 
     def odom_callback(self, msg):
-        self.qpos = msg.pose.pose.position
-        self.qvel = msg.twist.twist.linear
+        qpos = np.array(
+            [
+                msg.pose.pose.position.x,
+                msg.pose.pose.position.y,
+                msg.pose.pose.position.z,
+                msg.pose.pose.orientation.w,
+                msg.pose.pose.orientation.x,
+                msg.pose.pose.orientation.y,
+                msg.pose.pose.orientation.z,
+            ]
+        )
+        vb = np.array(
+            [
+                msg.twist.twist.linear.x,
+                msg.twist.twist.linear.y,
+                msg.twist.twist.linear.z,
+            ]
+        )
+        ab = np.array(
+            [
+                msg.twist.twist.angular.x,
+                msg.twist.twist.angular.y,
+                msg.twist.twist.angular.z,
+            ]
+        )
+        # rotate velocities to world frame
+        q = R.from_quat([qpos[3], qpos[4], qpos[5], qpos[6]])
+        vw = q.apply(vb)
+        aw = q.apply(ab)
+        self.qpos = qpos
+        self.qvel = np.concatenate([vw, aw])
 
     def get_state(self):
-        return self.qpos, self.qvel
+        return np.concatenate([self.qpos, self.qvel]) if self.qpos is not None else None
