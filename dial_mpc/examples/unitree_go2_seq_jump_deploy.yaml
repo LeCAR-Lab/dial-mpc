@@ -41,3 +41,17 @@ record: false
 real_time_factor: 1.0
 sim_dt: 0.005
 sync_mode: false
+
+# Real
+real_leg_control: torque
+network_interface: "enp2s0"
+kp: 30.0
+kd: 2.0
+initial_position_ctrl:
+  [0.0, 0.67, -1.3, 0.0, 0.67, -1.3, 0.0, 0.67, -1.3, 0.0, 0.67, -1.3]
+low_cmd_pub_dt: 0.002
+localization_plugin: "ros2_odometry_plugin"
+localization_timeout_sec: 0.1
+
+# ROS2 odometry plugin
+odom_topic: "odometry"
