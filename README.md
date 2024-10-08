@@ -103,10 +103,11 @@ For state estimation, this proof-of-concept work requires external localization 
 
 Support for ROS2 odometry message is built-in. You are responsible for publishing this message at at least 50 Hz and ideally over 100 Hz. We provide an odometry publisher for Vicon motion capture system in [`vicon_interface`](https://github.com/LeCAR-Lab/vicon_interface).
 
-We provide a simple ABI for custom localization modules, and you need to implement this in a python file in your workspace, should you consider not using ROS2.
+We provide a simple ABI for custom localization modules, and you need to implement this in a python file in your workspace, should you consider not using ROS2 odometry.
 
 ```python
 import numpy as np
+import time
 from dial_mpc.deploy.localization import register_plugin
 from dial_mpc.deploy.localization.base_plugin import BaseLocalizationPlugin
 
@@ -119,13 +120,19 @@ class MyPlugin(BaseLocalizationPlugin):
         qvel = np.zeros(6)
         return np.concatenate([qpos, qvel])
 
+    def get_last_update_time(self):
+        return time.time()
+
 register_plugin('custom_plugin', plugin_cls=custom_plugin.CustomPlugin)
 ```
 
 > [!CAUTION]
 > All velocities in ROS2 odometry message **must** be in **body frame** of the base to conform to [ROS odometry message definition](https://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html). However, when writing custom localization plugin, velocities should be reported in **world frame**. Under the hood, the built-in ROS2 odometry plugin converts the body frame velocities to world frame.
 
-Localization plugin can be changed in the configuration file.
+> [!INFO]
+> Angular velocity source is onboard IMU.
+
+Localization plugin can be changed in the configuration file. A `--plugin` argument can be supplied to `dial-mpc-real` to import a custom localization plugin in the current workspace.
 
 ### Installing `unitree_sdk2_python`
 
@@ -133,6 +140,12 @@ Localization plugin can be changed in the configuration file.
 > If you are already using ROS2 with Cyclone DDS according to [ROS2 documentation on Cyclone DDS](https://docs.ros.org/en/humble/Installation/DDS-Implementations/Working-with-Eclipse-CycloneDDS.html), you don't have to install Cyclone DDS as suggested by `unitree_sdk2_python`.
 
 Follow the instructions in [`unitree_sdk2_python`](https://github.com/unitreerobotics/unitree_sdk2_python).
+
+### Configuring DIAL-MPC
+
+In `dial_mpc/examples/unitree_go2_trot_deploy.yaml` or `dial_mpc/examples/unitree_go2_seq_jump.yaml`, modify `network_interface` to match the name of the network interface connected to Go2.
+
+Alternatively, you can also pass `--network_interface` to `dial-mpc-real` when launching the robot, which will override the config.
 
 ### Starting the Robot
 
@@ -158,9 +171,16 @@ In terminal 1, run
 # source /opt/ros/<ros-distro>/setup.bash # if using ROS2
 dial-mpc-real --example unitree_go2_seq_jump_deploy
 ```
-This will open a mujoco visualization window. Verify that the robot states match the real world and are updating.
 
-In terminal 2, run
+This will open a mujoco visualization window. The robot will slowly stand up. If the robot is squatting, manually lift the robot into a standing position. Verify that the robot states match the real world and are updating.
+
+You can supply additional arguments to `dial-mpc-real`:
+
+- `--custom-env`: custom environment definition.
+- `--network-interface`: override network interface configuration.
+- `--plugin`: custom localization plugin.
+
+Next, in terminal 2, run
 
 ```bash
 dial-mpc-plan --example unitree_go2_seq_jump_deploy
