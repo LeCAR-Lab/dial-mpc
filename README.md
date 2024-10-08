@@ -25,6 +25,15 @@ That means you can test out the controller in a plug-and-play manner with minimu
 
 https://github.com/user-attachments/assets/f2e5f26d-69ac-4478-872e-26943821a218
 
+
+## Table of Contents
+
+1. [Install](#install-dial-mpc)
+2. [Synchronous Simulation](#synchronous-simulation)
+3. [Asynchronous Simulation](#asynchronous-simulation)
+4. [Deploy in Real](#deploy-in-real-unitree-go2)
+5. [Writing Your Own Environment](#writing-custom-environment)
+
 ## Simulation Setup
 
 ### Install `dial-mpc`
