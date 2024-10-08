@@ -16,8 +16,15 @@ from scipy.spatial.transform import Rotation as R
 import art
 import yaml
 
-from unitree_sdk2py.core.channel import ChannelSubscriber, ChannelFactoryInitialize, ChannelPublisher
-from unitree_sdk2py.idl.default import unitree_go_msg_dds__LowState_, unitree_go_msg_dds__LowCmd_
+from unitree_sdk2py.core.channel import (
+    ChannelSubscriber,
+    ChannelFactoryInitialize,
+    ChannelPublisher,
+)
+from unitree_sdk2py.idl.default import (
+    unitree_go_msg_dds__LowState_,
+    unitree_go_msg_dds__LowCmd_,
+)
 from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowState_
 from unitree_sdk2py.idl.unitree_go.msg.dds_ import LowCmd_
 from unitree_sdk2py.utils.crc import CRC
@@ -49,13 +56,17 @@ class DialRealConfig:
     localization_plugin: str
     localization_timeout_sec: float
 
+
 class DialReal:
-    def __init__(self, real_config: DialRealConfig,
+    def __init__(
+        self,
+        real_config: DialRealConfig,
         env_config: BaseEnvConfig,
         dial_config: DialConfig,
-        plugin_config: dict):
+        plugin_config: dict,
+    ):
         self.leg_control = real_config.real_leg_control
-        if self.leg_control != 'position' and self.leg_control != 'torque':
+        if self.leg_control != "position" and self.leg_control != "torque":
             raise ValueError("Invalid leg control mode")
         self.record = real_config.record
         self.data = []
@@ -73,9 +84,11 @@ class DialReal:
         # load localization plugin
         self.localization_plugin = load_plugin(real_config.localization_plugin)
         if self.localization_plugin is None:
-            raise ValueError(f"Failed to load localization plugin \"{real_config.localization_plugin}\". Please see error messages above. Valid plugins are: {get_available_plugins()}")
+            raise ValueError(
+                f'Failed to load localization plugin "{real_config.localization_plugin}". Please see error messages above. Valid plugins are: {get_available_plugins()}'
+            )
         self.localization_plugin = self.localization_plugin(plugin_config)
-        self. localization_timeout_sec = real_config.localization_timeout_sec
+        self.localization_timeout_sec = real_config.localization_timeout_sec
 
         # unitree pubs and subs
         self.crc = CRC()
@@ -84,12 +97,12 @@ class DialReal:
         self.low_pub.Init()
         self.low_cmd = unitree_go_msg_dds__LowCmd_()
         self.low_cmd.head[0] = 0xFE
-        self.low_cmd.head[1]=0xEF
+        self.low_cmd.head[1] = 0xEF
         self.low_cmd.level_flag = 0xFF
         self.low_cmd.gpio = 0
         for i in range(20):
             self.low_cmd.motor_cmd[i].mode = 0x01  # (PMSM) mode
-            self.low_cmd.motor_cmd[i].q= unitree.PosStopF
+            self.low_cmd.motor_cmd[i].q = unitree.PosStopF
             self.low_cmd.motor_cmd[i].kp = 0
             self.low_cmd.motor_cmd[i].dq = unitree.VelStopF
             self.low_cmd.motor_cmd[i].kd = 0
@@ -105,7 +118,7 @@ class DialReal:
         self.mj_data = mujoco.MjData(self.mj_model)
         mujoco.mj_resetDataKeyframe(self.mj_model, self.mj_data, 0)
         mujoco.mj_forward(self.mj_model, self.mj_data)
-        self.viewer= mujoco.viewer.launch_passive(
+        self.viewer = mujoco.viewer.launch_passive(
             self.mj_model, self.mj_data, show_left_ui=False, show_right_ui=True
         )
 
@@ -203,7 +216,6 @@ class DialReal:
         self.state_shared[:] = state
         self.mj_data.qpos = q
         self.mj_data.qvel = dq
-        
 
     def main_loop(self):
         while True:
@@ -226,24 +238,41 @@ class DialReal:
 
             # publish control
             for i in range(12):
-                if self.plan_time_shared[0] < 0.0 or self.leg_control == 'position':
+                if self.plan_time_shared[0] < 0.0 or self.leg_control == "position":
                     self.low_cmd.motor_cmd[i].q = self.mj_data.ctrl[i]
-                    self.low_cmd.motor_cmd[i].kp = min(self.current_kp, self.kp) if type(self.kp) is float else min(self.current_kp, self.kp[i])
+                    self.low_cmd.motor_cmd[i].kp = (
+                        min(self.current_kp, self.kp)
+                        if type(self.kp) is float
+                        else min(self.current_kp, self.kp[i])
+                    )
                     self.low_cmd.motor_cmd[i].dq = 0
-                    self.low_cmd.motor_cmd[i].kd = self.kd if type(self.kd) is float else self.kd[i]
+                    self.low_cmd.motor_cmd[i].kd = (
+                        self.kd if type(self.kd) is float else self.kd[i]
+                    )
                     self.low_cmd.motor_cmd[i].tau = 0
                     self.current_kp += 0.005  # ramp up kp to start the robot smoothly
                 else:
                     self.low_cmd.motor_cmd[i].q = 0.0
                     self.low_cmd.motor_cmd[i].kp = 0.0
                     self.low_cmd.motor_cmd[i].dq = 0.0
-                    self.low_cmd.motor_cmd[i].kd = self.kd if type(self.kd) is float else self.kd[i]
+                    self.low_cmd.motor_cmd[i].kd = (
+                        self.kd if type(self.kd) is float else self.kd[i]
+                    )
                     self.low_cmd.motor_cmd[i].tau = taus[i] * 1.0
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
             self.low_pub.Write(self.low_cmd)
-            
+
             if self.plan_time_shared[0] >= 0.0 and self.record:
-                self.data.append(np.concatenate([[time.time()], self.mj_data.qpos, self.mj_data.qvel, self.mj_data.ctrl]))
+                self.data.append(
+                    np.concatenate(
+                        [
+                            [time.time()],
+                            self.mj_data.qpos,
+                            self.mj_data.qvel,
+                            self.mj_data.ctrl,
+                        ]
+                    )
+                )
 
             t1 = time.time()
             duration = t1 - t0
