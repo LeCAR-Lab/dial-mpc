@@ -140,7 +140,7 @@ register_plugin('custom_plugin', plugin_cls=custom_plugin.CustomPlugin)
 > [!CAUTION]
 > All velocities in ROS2 odometry message **must** be in **body frame** of the base to conform to [ROS odometry message definition](https://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html). However, when writing custom localization plugin, velocities should be reported in **world frame**. Under the hood, the built-in ROS2 odometry plugin converts the body frame velocities to world frame.
 
-> [!INFO]
+> [!NOTE]
 > Angular velocity source is onboard IMU.
 
 Localization plugin can be changed in the configuration file. A `--plugin` argument can be supplied to `dial-mpc-real` to import a custom localization plugin in the current workspace.
