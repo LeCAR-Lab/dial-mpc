@@ -10,7 +10,8 @@ from dial_mpc.deploy.localization.base_plugin import BaseLocalizationPlugin
 
 class ROS2OdometryPlugin(BaseLocalizationPlugin, Node):
     def __init__(self, config):
-        super().__init__(config)
+        BaseLocalizationPlugin.__init__(self, config)
+        rclpy.init()
         Node.__init__(self, "ros2_odom_plugin")
         self.subscription = self.create_subscription(
             Odometry, config["odom_topic"], self.odom_callback, 1
@@ -18,6 +19,10 @@ class ROS2OdometryPlugin(BaseLocalizationPlugin, Node):
 
         self.qpos = None
         self.qvel = None
+        self.last_time = None
+
+    def __del__(self):
+        rclpy.shutdown()
 
     def odom_callback(self, msg):
         qpos = np.array(
@@ -51,6 +56,10 @@ class ROS2OdometryPlugin(BaseLocalizationPlugin, Node):
         aw = q.apply(ab)
         self.qpos = qpos
         self.qvel = np.concatenate([vw, aw])
+        self.last_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
 
     def get_state(self):
         return np.concatenate([self.qpos, self.qvel]) if self.qpos is not None else None
+
+    def get_last_update_time(self):
+        return self.last_time
