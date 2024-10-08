@@ -33,6 +33,8 @@ https://github.com/user-attachments/assets/f2e5f26d-69ac-4478-872e-26943821a218
 3. [Asynchronous Simulation](#asynchronous-simulation)
 4. [Deploy in Real](#deploy-in-real-unitree-go2)
 5. [Writing Your Own Environment](#writing-custom-environment)
+6. [Rendering Rollouts](#rendering-rollouts-in-blender)
+7. [Citing this Work](#bibtex)
 
 ## Simulation Setup
 
