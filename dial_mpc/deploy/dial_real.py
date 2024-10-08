@@ -32,7 +32,7 @@ from dial_mpc.utils.io_utils import (
     get_example_path,
 )
 from dial_mpc.examples import deploy_examples
-from dial_mpc.deploy.localization import load_plugin
+from dial_mpc.deploy.localization import load_plugin, get_available_plugins
 
 
 @dataclass
@@ -54,7 +54,6 @@ class DialReal:
         env_config: BaseEnvConfig,
         dial_config: DialConfig,
         plugin_config: dict):
-        super().__init__("go2_real")
         self.leg_control = real_config.real_leg_control
         if self.leg_control != 'position' and self.leg_control != 'torque':
             raise ValueError("Invalid leg control mode")
@@ -65,7 +64,7 @@ class DialReal:
         self.kd = real_config.kd
         self.current_kp = 0.0
         self.mocap_odom = None
-        self.ctrl_dt = env_config.ctrl_dt
+        self.ctrl_dt = env_config.dt
         self.n_acts = dial_config.Hsample + 1
         self.t = 0.0
         self.stand_ctrl = np.array(real_config.initial_position_ctrl, dtype=np.float32)
@@ -74,7 +73,7 @@ class DialReal:
         # load localization plugin
         self.localization_plugin = load_plugin(real_config.localization_plugin)
         if self.localization_plugin is None:
-            raise ValueError("Invalid localization plugin")
+            raise ValueError(f"Failed to load localization plugin \"{real_config.localization_plugin}\". Please see error messages above. Valid plugins are: {get_available_plugins()}")
         self.localization_plugin = self.localization_plugin(plugin_config)
         self. localization_timeout_sec = real_config.localization_timeout_sec
 
@@ -163,7 +162,7 @@ class DialReal:
 
         # visualization thread
         self.vis_thread = Thread(target=self.visualize)
-        self.vis_thread.start()
+        self.vis_thread.Start()
 
     def visualize(self):
         while True:
@@ -288,11 +287,26 @@ def main(args=None):
         default=None,
         help="Custom environment to import dynamically",
     )
+    parser.add_argument(
+        "--network-interface",
+        type=str,
+        default=None,
+        help="Network interface override",
+    )
+    parser.add_argument(
+        "--plugin",
+        type=str,
+        default=None,
+        help="Custom localization plugin to import dynamically",
+    )
     args = parser.parse_args()
 
     if args.custom_env is not None:
         sys.path.append(os.getcwd())
         importlib.import_module(args.custom_env)
+    if args.plugin is not None:
+        sys.path.append(os.getcwd())
+        importlib.import_module(args.plugin)
 
     if args.list_examples:
         print("Available examples:")
@@ -308,6 +322,10 @@ def main(args=None):
         )
     else:
         config_dict = yaml.safe_load(open(args.config, "r"))
+
+    if args.network_interface is not None:
+        config_dict["network_interface"] = args.network_interface
+
     real_config = load_dataclass_from_dict(DialRealConfig, config_dict)
     env_config = load_dataclass_from_dict(BaseEnvConfig, config_dict)
     dial_config = load_dataclass_from_dict(DialConfig, config_dict)
