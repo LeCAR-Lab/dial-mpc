@@ -49,8 +49,8 @@ class DialRealConfig:
     real_leg_control: str
     record: bool
     network_interface: str
-    kp: Union[float, List[float]]
-    kd: Union[float, List[float]]
+    real_kp: Union[float, List[float]]
+    real_kd: Union[float, List[float]]
     initial_position_ctrl: List[float]
     low_cmd_pub_dt: float
     localization_plugin: str
@@ -71,8 +71,8 @@ class DialReal:
         self.record = real_config.record
         self.data = []
         # control related
-        self.kp = real_config.kp
-        self.kd = real_config.kd
+        self.kp = real_config.real_kp
+        self.kd = real_config.real_kd
         self.current_kp = 0.0
         self.mocap_odom = None
         self.ctrl_dt = env_config.dt
