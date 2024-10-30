@@ -4,7 +4,7 @@ output_dir: unitree_h1_loco
 n_steps: 400
 
 env_name: unitree_h1_loco
-Nsample: 4096
+Nsample: 3000
 Hsample: 20
 Hnode: 5
 Ndiffuse: 1
