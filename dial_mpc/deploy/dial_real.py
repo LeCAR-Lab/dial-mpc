@@ -90,26 +90,6 @@ class DialReal:
         self.localization_plugin = self.localization_plugin(plugin_config)
         self.localization_timeout_sec = real_config.localization_timeout_sec
 
-        # unitree pubs and subs
-        self.crc = CRC()
-        ChannelFactoryInitialize(0, real_config.network_interface)
-        self.low_pub = ChannelPublisher("rt/lowcmd", LowCmd_)
-        self.low_pub.Init()
-        self.low_cmd = unitree_go_msg_dds__LowCmd_()
-        self.low_cmd.head[0] = 0xFE
-        self.low_cmd.head[1] = 0xEF
-        self.low_cmd.level_flag = 0xFF
-        self.low_cmd.gpio = 0
-        for i in range(20):
-            self.low_cmd.motor_cmd[i].mode = 0x01  # (PMSM) mode
-            self.low_cmd.motor_cmd[i].q = unitree.PosStopF
-            self.low_cmd.motor_cmd[i].kp = 0
-            self.low_cmd.motor_cmd[i].dq = unitree.VelStopF
-            self.low_cmd.motor_cmd[i].kd = 0
-            self.low_cmd.motor_cmd[i].tau = 0
-        self.low_sub = ChannelSubscriber("rt/lowstate", LowState_)
-        self.low_sub.Init(self.on_low_state, 1)
-
         # mujoco setup
         self.mj_model = mujoco.MjModel.from_xml_path(
             get_model_path(real_config.robot_name, real_config.scene_name).as_posix()
@@ -172,6 +152,26 @@ class DialReal:
         self.tau_shared = np.ndarray(
             (self.n_acts, self.mj_model.nu), dtype=np.float32, buffer=self.tau_shm.buf
         )
+
+        # unitree pubs and subs
+        self.crc = CRC()
+        ChannelFactoryInitialize(0, real_config.network_interface)
+        self.low_pub = ChannelPublisher("rt/lowcmd", LowCmd_)
+        self.low_pub.Init()
+        self.low_cmd = unitree_go_msg_dds__LowCmd_()
+        self.low_cmd.head[0] = 0xFE
+        self.low_cmd.head[1] = 0xEF
+        self.low_cmd.level_flag = 0xFF
+        self.low_cmd.gpio = 0
+        for i in range(20):
+            self.low_cmd.motor_cmd[i].mode = 0x01  # (PMSM) mode
+            self.low_cmd.motor_cmd[i].q = unitree.PosStopF
+            self.low_cmd.motor_cmd[i].kp = 0
+            self.low_cmd.motor_cmd[i].dq = unitree.VelStopF
+            self.low_cmd.motor_cmd[i].kd = 0
+            self.low_cmd.motor_cmd[i].tau = 0
+        self.low_sub = ChannelSubscriber("rt/lowstate", LowState_)
+        self.low_sub.Init(self.on_low_state, 1)
 
         # visualization thread
         self.vis_thread = Thread(target=self.visualize)
