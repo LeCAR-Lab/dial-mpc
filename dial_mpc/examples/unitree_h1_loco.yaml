@@ -1,0 +1,28 @@
+# DIAL-MPC
+seed: 0
+output_dir: unitree_h1_loco
+n_steps: 400
+
+env_name: unitree_h1_loco
+Nsample: 2048
+Hsample: 20
+Hnode: 5
+Ndiffuse: 1
+Ndiffuse_init: 10
+temp_sample: 0.05
+horizon_diffuse_factor: 0.9
+traj_diffuse_factor: 0.2
+update_method: mppi
+
+# Base environment
+dt: 0.02
+timestep: 0.02
+leg_control: torque
+action_scale: 1.0
+
+# H1
+default_vx: 0.6
+default_vy: 0.0
+default_vyaw: 0.0
+ramp_up_time: 3.0
+gait: walk
