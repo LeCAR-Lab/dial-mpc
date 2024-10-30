@@ -254,7 +254,7 @@ def main():
 
             t0 = time.time()
             traj_diffuse_factors = (
-                dial_config.traj_diffuse_factor ** (jnp.arange(n_diffuse))[:, None]
+                mbdpi.sigma_control * dial_config.traj_diffuse_factor ** (jnp.arange(n_diffuse))[:, None]
             )
             (rng, Y0, _), info = jax.lax.scan(
                 reverse_scan, (rng, Y0, state), traj_diffuse_factors
