@@ -160,7 +160,7 @@ register_plugin('custom_plugin', plugin_cls=MyPlugin)
 > When writing custom localization plugin, velocities should be reported in **world frame**.
 
 > [!NOTE]
-> Angular velocity source is onboard IMU.
+> Angular velocity source is onboard IMU. You could leave `qvel[3:6]` in the returned state as zero for now.
 
 Localization plugin can be changed in the configuration file. A `--plugin` argument can be supplied to `dial-mpc-real` to import a custom localization plugin in the current workspace.
 
