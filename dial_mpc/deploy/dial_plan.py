@@ -182,7 +182,7 @@ class MBDPublisher:
             # shift Y
             shift_time = plan_time - last_plan_time
             if shift_time > self.ctrl_dt + 1e-3:
-                print(f"[WRAN] sim overtime {(shift_time-self.ctrl_dt)*1000:.1f} ms")
+                print(f"[WARN] sim overtime {(shift_time-self.ctrl_dt)*1000:.1f} ms")
             if shift_time > self.ctrl_dt * self.n_acts:
                 print(
                     f"[WARN] long time unplanned {shift_time*1000:.1f} ms, reset control"
@@ -226,7 +226,7 @@ class MBDPublisher:
             # record time
             last_plan_time = plan_time
             if time.time() - t0 > self.ctrl_dt:
-                print(f"[WRAN] real overtime {(time.time()-t0)*1000:.1f} ms")
+                print(f"[WARN] real overtime {(time.time()-t0)*1000:.1f} ms")
 
 
 def main(args=None):

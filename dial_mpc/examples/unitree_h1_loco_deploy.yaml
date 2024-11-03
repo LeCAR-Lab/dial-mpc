@@ -36,3 +36,26 @@ record: false
 real_time_factor: 1.0
 sim_dt: 0.005
 sync_mode: false
+
+# Real
+real_leg_control: torque
+network_interface: "enxf8e43b564e0a"
+real_kp: [200.0, 200.0, 200.0, 200.0, 60.0, 200.0, 200.0, 200.0, 60.0, 200.0, 200.0, 200.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0]
+real_kd: [5.0, 5.0, 5.0, 5.0, 1.5, 5.0, 5.0, 5.0, 1.5, 5.0, 5.0, 5.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]
+initial_position_ctrl: [
+  0, 0, -0.4, 0.8, -0.4,
+  0, 0, -0.4, 0.8, -0.4,
+  0
+]
+low_cmd_pub_dt: 0.002
+localization_plugin: "debug_plugin"
+localization_timeout_sec: 0.1
+dummy_joint_idx: [11, 12, 13, 14, 15, 16, 17, 18]
+dummy_joint_vals: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+# ROS2 odometry plugin
+odom_topic: "odometry"
+
+# Vicon plugin
+vicon_tracker_ip: "128.2.184.3"
+vicon_object_name: "lecar_go2"
+vicon_z_offset: 0.0

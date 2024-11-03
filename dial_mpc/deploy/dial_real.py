@@ -56,6 +56,8 @@ class DialRealConfig:
     localization_plugin: str
     localization_timeout_sec: float
 
+    dummy_joint_idx: List[int] = None  # for controlling joints that are locked in the simulation
+    dummy_joint_vals: List[float] = None
 
 class DialReal:
     def __init__(
@@ -105,6 +107,18 @@ class DialReal:
         # parameters
         self.Nx = self.mj_model.nq + self.mj_model.nv
         self.Nu = self.mj_model.nu
+        if real_config.dummy_joint_idx is None:
+            self.real_joint_idx = np.arange(self.Nu).tolist()
+            self.dummy_joint_idx = []
+            self.dummy_joint_vals = []
+            assert real_config.dummy_joint_vals is None, "dummy_joint_vals must be None if dummy_joint_idx is None"
+        else:
+            all_joints = np.arange(self.Nu)
+            self.real_joint_idx = np.setdiff1d(all_joints, real_config.dummy_joint_idx).tolist()
+            self.dummy_joint_idx = real_config.dummy_joint_idx
+            self.dummy_joint_vals = real_config.dummy_joint_vals
+            assert len(real_config.dummy_joint_vals) == len(self.dummy_joint_idx), f"dummy_joint_vals must have length {len(self.dummy_joint_idx)}"
+
 
         # get home keyframe
         self.default_q = self.mj_model.keyframe("home").qpos
@@ -208,9 +222,9 @@ class DialReal:
         dq[3:6] = ang_vel_world
 
         # update joint positions and velocities
-        for i in range(12):
-            q[7 + i] = msg.motor_state[i].q
-            dq[6 + i] = msg.motor_state[i].dq
+        for i in range(len(self.real_joint_idx)):
+            q[7 + i] = msg.motor_state[self.real_joint_idx[i]].q
+            dq[6 + i] = msg.motor_state[self.real_joint_idx[i]].dq
 
         state = np.concatenate([q, dq])
         self.state_shared[:] = state
@@ -237,9 +251,12 @@ class DialReal:
                 # self.data.append(np.concatenate([[time.time()], self.mj_data.qpos, self.mj_data.qvel, self.mj_data.ctrl]))
 
             # publish control
-            for i in range(12):
-                if self.plan_time_shared[0] < 0.0 or self.leg_control == "position":
-                    self.low_cmd.motor_cmd[i].q = self.mj_data.ctrl[i]
+            for i in range(len(self.real_joint_idx) + len(self.dummy_joint_idx)):
+                if self.plan_time_shared[0] < 0.0 or self.leg_control == "position" or i in self.dummy_joint_idx:
+                    if i in self.real_joint_idx:
+                        self.low_cmd.motor_cmd[i].q = self.mj_data.ctrl[self.real_joint_idx.index(i)]
+                    else:
+                        self.low_cmd.motor_cmd[i].q = self.dummy_joint_vals[self.dummy_joint_idx.index(i)]
                     self.low_cmd.motor_cmd[i].kp = (
                         min(self.current_kp, self.kp)
                         if type(self.kp) is float
@@ -258,8 +275,9 @@ class DialReal:
                     self.low_cmd.motor_cmd[i].kd = (
                         self.kd if type(self.kd) is float else self.kd[i]
                     )
-                    self.low_cmd.motor_cmd[i].tau = taus[i] * 1.0
+                    self.low_cmd.motor_cmd[i].tau = taus[self.real_joint_idx.index(i)] * 1.0
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
+            print(self.low_cmd)
             self.low_pub.Write(self.low_cmd)
 
             if self.plan_time_shared[0] >= 0.0 and self.record:
