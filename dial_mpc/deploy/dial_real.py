@@ -113,7 +113,7 @@ class DialReal:
             self.dummy_joint_vals = []
             assert real_config.dummy_joint_vals is None, "dummy_joint_vals must be None if dummy_joint_idx is None"
         else:
-            all_joints = np.arange(self.Nu)
+            all_joints = np.arange(self.Nu + len(real_config.dummy_joint_idx))
             self.real_joint_idx = np.setdiff1d(all_joints, real_config.dummy_joint_idx).tolist()
             self.dummy_joint_idx = real_config.dummy_joint_idx
             self.dummy_joint_vals = real_config.dummy_joint_vals
@@ -277,7 +277,6 @@ class DialReal:
                     )
                     self.low_cmd.motor_cmd[i].tau = taus[self.real_joint_idx.index(i)] * 1.0
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
-            print(self.low_cmd)
             self.low_pub.Write(self.low_cmd)
 
             if self.plan_time_shared[0] >= 0.0 and self.record:

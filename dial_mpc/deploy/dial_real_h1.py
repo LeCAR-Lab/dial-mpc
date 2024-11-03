@@ -41,6 +41,23 @@ from dial_mpc.utils.io_utils import (
 from dial_mpc.examples import deploy_examples
 from dial_mpc.deploy.localization import load_plugin, get_available_plugins
 
+motor2mjx = {
+    8: 5,
+    0: 6,
+    1: 7,
+    2: 8,
+    11: 9,
+    7: 0,
+    3: 1,
+    4: 2,
+    5: 3,
+    10: 4,
+    6: 10,
+}
+
+mjx2motor = {v: k for k, v in motor2mjx.items()}
+
+h1_motor_modes = [0x0A] * 10 + [0x01] * 10
 
 @dataclass
 class DialRealConfig:
@@ -59,7 +76,7 @@ class DialRealConfig:
     dummy_joint_idx: List[int] = None  # for controlling joints that are locked in the simulation
     dummy_joint_vals: List[float] = None
 
-class DialReal:
+class DialRealH1:
     def __init__(
         self,
         real_config: DialRealConfig,
@@ -113,7 +130,7 @@ class DialReal:
             self.dummy_joint_vals = []
             assert real_config.dummy_joint_vals is None, "dummy_joint_vals must be None if dummy_joint_idx is None"
         else:
-            all_joints = np.arange(self.Nu)
+            all_joints = np.arange(self.Nu + len(real_config.dummy_joint_idx))
             self.real_joint_idx = np.setdiff1d(all_joints, real_config.dummy_joint_idx).tolist()
             self.dummy_joint_idx = real_config.dummy_joint_idx
             self.dummy_joint_vals = real_config.dummy_joint_vals
@@ -178,7 +195,7 @@ class DialReal:
         self.low_cmd.level_flag = 0xFF
         self.low_cmd.gpio = 0
         for i in range(20):
-            self.low_cmd.motor_cmd[i].mode = 0x01  # (PMSM) mode
+            self.low_cmd.motor_cmd[i].mode = h1_motor_modes[i]  # (PMSM) mode
             self.low_cmd.motor_cmd[i].q = unitree.PosStopF
             self.low_cmd.motor_cmd[i].kp = 0
             self.low_cmd.motor_cmd[i].dq = unitree.VelStopF
@@ -223,8 +240,9 @@ class DialReal:
 
         # update joint positions and velocities
         for i in range(len(self.real_joint_idx)):
-            q[7 + i] = msg.motor_state[self.real_joint_idx[i]].q
-            dq[6 + i] = msg.motor_state[self.real_joint_idx[i]].dq
+            mjx_idx = motor2mjx[self.real_joint_idx[i]]
+            q[7 + mjx_idx] = msg.motor_state[self.real_joint_idx[i]].q
+            dq[6 + mjx_idx] = msg.motor_state[self.real_joint_idx[i]].dq
 
         state = np.concatenate([q, dq])
         self.state_shared[:] = state
@@ -254,7 +272,8 @@ class DialReal:
             for i in range(len(self.real_joint_idx) + len(self.dummy_joint_idx)):
                 if self.plan_time_shared[0] < 0.0 or self.leg_control == "position" or i in self.dummy_joint_idx:
                     if i in self.real_joint_idx:
-                        self.low_cmd.motor_cmd[i].q = self.mj_data.ctrl[self.real_joint_idx.index(i)]
+                        mjx_idx = motor2mjx[i]
+                        self.low_cmd.motor_cmd[i].q = self.mj_data.ctrl[mjx_idx]
                     else:
                         self.low_cmd.motor_cmd[i].q = self.dummy_joint_vals[self.dummy_joint_idx.index(i)]
                     self.low_cmd.motor_cmd[i].kp = (
@@ -269,15 +288,16 @@ class DialReal:
                     self.low_cmd.motor_cmd[i].tau = 0
                     self.current_kp += 0.005  # ramp up kp to start the robot smoothly
                 else:
+                    mjx_idx = motor2mjx[i]
                     self.low_cmd.motor_cmd[i].q = 0.0
                     self.low_cmd.motor_cmd[i].kp = 0.0
                     self.low_cmd.motor_cmd[i].dq = 0.0
                     self.low_cmd.motor_cmd[i].kd = (
                         self.kd if type(self.kd) is float else self.kd[i]
                     )
-                    self.low_cmd.motor_cmd[i].tau = taus[self.real_joint_idx.index(i)] * 1.0
+                    self.low_cmd.motor_cmd[i].tau = taus[mjx_idx] * 1.0
             self.low_cmd.crc = self.crc.Crc(self.low_cmd)
-            print(self.low_cmd)
+            # print(self.low_cmd)
             self.low_pub.Write(self.low_cmd)
 
             if self.plan_time_shared[0] >= 0.0 and self.record:
@@ -376,7 +396,7 @@ def main(args=None):
     real_config = load_dataclass_from_dict(DialRealConfig, config_dict)
     env_config = load_dataclass_from_dict(BaseEnvConfig, config_dict)
     dial_config = load_dataclass_from_dict(DialConfig, config_dict)
-    real_env = DialReal(real_config, env_config, dial_config, config_dict)
+    real_env = DialRealH1(real_config, env_config, dial_config, config_dict)
 
     try:
         real_env.main_loop()

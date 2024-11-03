@@ -11,6 +11,7 @@ class ROS2OdometryPlugin(BaseLocalizationPlugin):
 
     def get_state(self):
         qpos = np.zeros(7)
+        qpos[2] = 1.0
         qpos[3] = 1.0
         qvel = np.zeros(6)
         return np.concatenate([qpos, qvel])
