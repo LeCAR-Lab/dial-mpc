@@ -21,6 +21,7 @@ That means you can test out the controller in a plug-and-play manner with minimu
 
 ## News
 
+- 11/03/2024: 🎉 Sim2Real pipeline is ready! Check out the [Sim2Real](#deploy-in-real-unitree-go2) section for more details.
 - 09/25/2024: 🎉 DIAL-MPC is released with open-source codes! Sim2Real pipeline coming soon!
 
 https://github.com/user-attachments/assets/f2e5f26d-69ac-4478-872e-26943821a218
@@ -112,9 +113,27 @@ We use `unitree_sdk2_python` to communicate with the robot directly via CycloneD
 
 For state estimation, this proof-of-concept work requires external localization module to get base **position** and **velocity**.
 
-Support for ROS2 odometry message is built-in. You are responsible for publishing this message at at least 50 Hz and ideally over 100 Hz. We provide an odometry publisher for Vicon motion capture system in [`vicon_interface`](https://github.com/LeCAR-Lab/vicon_interface).
+The following plugins are built-in:
 
-We provide a simple ABI for custom localization modules, and you need to implement this in a python file in your workspace, should you consider not using ROS2 odometry.
+- ROS2 odometry message
+- Vicon motion capture system
+
+#### Option 1: ROS2 odometry message
+
+Configure `odom_topic` in the YAML file. You are responsible for publishing this message at at least 50 Hz and ideally over 100 Hz. We provide an odometry publisher for Vicon motion capture system in [`vicon_interface`](https://github.com/LeCAR-Lab/vicon_interface).
+
+> [!CAUTION]
+> All velocities in ROS2 odometry message **must** be in **body frame** of the base to conform to [ROS odometry message definition](https://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html), although in the end they are converted to world frame in DIAL-MPC.
+
+#### Option 2: Vicon (no ROS2 required)
+
+1. `pip install pyvicon-datastream`
+2. Change `localization_plugin` to `vicon_shm_plugin` in the YAML file.
+3. Configure `vicon_tracker_ip`, `vicon_object_name`, and `vicon_z_offset` in the YAML file.
+
+#### Option 3: Bring Your Own Plugin
+
+We provide a simple ABI for custom localization modules, and you need to implement this in a python file in your workspace, should you consider not using the built-in plugins.
 
 ```python
 import numpy as np
@@ -134,11 +153,11 @@ class MyPlugin(BaseLocalizationPlugin):
     def get_last_update_time(self):
         return time.time()
 
-register_plugin('custom_plugin', plugin_cls=custom_plugin.CustomPlugin)
+register_plugin('custom_plugin', plugin_cls=MyPlugin)
 ```
 
 > [!CAUTION]
-> All velocities in ROS2 odometry message **must** be in **body frame** of the base to conform to [ROS odometry message definition](https://docs.ros.org/en/noetic/api/nav_msgs/html/msg/Odometry.html). However, when writing custom localization plugin, velocities should be reported in **world frame**. Under the hood, the built-in ROS2 odometry plugin converts the body frame velocities to world frame.
+> When writing custom localization plugin, velocities should be reported in **world frame**.
 
 > [!NOTE]
 > Angular velocity source is onboard IMU.
@@ -148,7 +167,7 @@ Localization plugin can be changed in the configuration file. A `--plugin` argum
 ### Installing `unitree_sdk2_python`
 
 > [!NOTE]
-> If you are already using ROS2 with Cyclone DDS according to [ROS2 documentation on Cyclone DDS](https://docs.ros.org/en/humble/Installation/DDS-Implementations/Working-with-Eclipse-CycloneDDS.html), you don't have to install Cyclone DDS as suggested by `unitree_sdk2_python`.
+> If you are already using ROS2 with Cyclone DDS according to [ROS2 documentation on Cyclone DDS](https://docs.ros.org/en/humble/Installation/DDS-Implementations/Working-with-Eclipse-CycloneDDS.html), you don't have to install Cyclone DDS as suggested by `unitree_sdk2_python`. But do follow the rest of the instructions.
 
 Follow the instructions in [`unitree_sdk2_python`](https://github.com/unitreerobotics/unitree_sdk2_python).
 
