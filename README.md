@@ -109,7 +109,7 @@ The real-world deployment procedure is very similar to asynchronous simulation.
 
 We use `unitree_sdk2_python` to communicate with the robot directly via CycloneDDS.
 
-### State Estimation
+### Step 1: State Estimation
 
 For state estimation, this proof-of-concept work requires external localization module to get base **position** and **velocity**.
 
@@ -164,20 +164,20 @@ register_plugin('custom_plugin', plugin_cls=MyPlugin)
 
 Localization plugin can be changed in the configuration file. A `--plugin` argument can be supplied to `dial-mpc-real` to import a custom localization plugin in the current workspace.
 
-### Installing `unitree_sdk2_python`
+### Step 2: Installing `unitree_sdk2_python`
 
 > [!NOTE]
 > If you are already using ROS2 with Cyclone DDS according to [ROS2 documentation on Cyclone DDS](https://docs.ros.org/en/humble/Installation/DDS-Implementations/Working-with-Eclipse-CycloneDDS.html), you don't have to install Cyclone DDS as suggested by `unitree_sdk2_python`. But do follow the rest of the instructions.
 
 Follow the instructions in [`unitree_sdk2_python`](https://github.com/unitreerobotics/unitree_sdk2_python).
 
-### Configuring DIAL-MPC
+### Step 3: Configuring DIAL-MPC
 
 In `dial_mpc/examples/unitree_go2_trot_deploy.yaml` or `dial_mpc/examples/unitree_go2_seq_jump.yaml`, modify `network_interface` to match the name of the network interface connected to Go2.
 
 Alternatively, you can also pass `--network_interface` to `dial-mpc-real` when launching the robot, which will override the config.
 
-### Starting the Robot
+### Step 4: Starting the Robot
 
 Follow the [official Unitree documentation](https://support.unitree.com/home/en/developer/Quick_start) to disable sports mode on Go2. Lay the robot flat on the ground like shown.
 
@@ -185,7 +185,7 @@ Follow the [official Unitree documentation](https://support.unitree.com/home/en/
     <img src="images/go2.png" alt="Unitree Go2 laying flat on the ground." style="width:50%;">
 </div>
 
-### Running the Robot
+### Step 5: Running the Robot
 
 List available examples:
 
