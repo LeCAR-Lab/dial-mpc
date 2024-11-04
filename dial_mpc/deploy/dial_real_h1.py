@@ -235,6 +235,8 @@ class DialRealH1:
         rot = R.from_quat([q[4], q[5], q[6], q[3]]).as_matrix()
         # ang_vel_body = np.array([self.mocap_odom.twist.twist.angular.x, self.mocap_odom.twist.twist.angular.y, self.mocap_odom.twist.twist.angular.z])
         ang_vel_body = np.array([msg.imu_state.gyroscope]).flatten()
+        torso_joint_vel = msg.motor_state[6].dq
+        ang_vel_body[2] += torso_joint_vel  # on H1, imu is not mounted on the pelvis.
         ang_vel_world = rot @ ang_vel_body
         dq[3:6] = ang_vel_world
 

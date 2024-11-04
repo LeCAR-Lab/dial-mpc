@@ -21,7 +21,7 @@ leg_control: torque
 action_scale: 1.0
 
 # H1
-default_vx: 0.8
+default_vx: 0.1
 default_vy: 0.0
 default_vyaw: 0.0
 ramp_up_time: 3.0
@@ -39,19 +39,21 @@ sync_mode: false
 
 # Real
 real_leg_control: torque
-network_interface: "enxf8e43b564e0a"
-real_kp: [200.0, 200.0, 200.0, 200.0, 200.0, 200.0, 200.0, 200.0, 200.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0, 60.0]
-real_kd: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]
+# network_interface: "enxf8e43b564e0a"
+network_interface: "enp5s0"
+real_kp: [200.0, 200.0, 200.0, 200.0, 200.0, 200.0, 200.0, 200.0, 200.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0]
+real_kd: [5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
 initial_position_ctrl: [
-  0, 0, -0.7, 1.1, -0.5,
-  0, 0, -0.7, 1.1, -0.5,
+  0, 0, -0.5, 0.85, -0.37,
+  0, 0, -0.5, 0.85, -0.37,
   0
 ]
 low_cmd_pub_dt: 0.002
-localization_plugin: "debug_plugin"
-localization_timeout_sec: 0.1
+localization_plugin: "mocap4ros2_plugin"
+localization_timeout_sec: 0.0
 dummy_joint_idx: [9, 12, 13, 14, 15, 16, 17, 18, 19]
 dummy_joint_vals: [0.0, 0.0, 0.0, 0.0, 0.785, 0.0, 0.0, 0.0, 0.785]
+
 # ROS2 odometry plugin
 odom_topic: "odometry"
 
@@ -59,3 +61,8 @@ odom_topic: "odometry"
 vicon_tracker_ip: "128.2.184.3"
 vicon_object_name: "lecar_go2"
 vicon_z_offset: 0.0
+
+# Mocap4ros2 plugin
+rigid_bodies_topic: "rigid_bodies"
+up_axis: "y"
+debug_mocap: true

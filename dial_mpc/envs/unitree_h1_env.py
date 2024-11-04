@@ -575,12 +575,12 @@ class UnitreeH1LocoEnvConfig(BaseEnvConfig):
             200.0,
             200.0,  # left hips
             200.0,
-            60.0,  # left knee, ankle
+            80.0,  # left knee, ankle
             200.0,
             200.0,
             200.0,  # right hips
             200.0,
-            60.0,  # right knee, ankle
+            80.0,  # right knee, ankle
             200.0,  # torso
         ]
     ))
@@ -590,12 +590,12 @@ class UnitreeH1LocoEnvConfig(BaseEnvConfig):
             5.0,
             5.0,  # left hips
             5.0,
-            1.5,  # left knee, ankle
+            2.0,  # left knee, ankle
             5.0,
             5.0,
             5.0,  # right hips
             5.0,
-            1.5,  # right knee, ankle
+            2.0,  # right knee, ankle
             5.0,  # torso
         ]
     ))
@@ -810,7 +810,7 @@ class UnitreeH1LocoEnv(BaseEnv):
         reward_alive = 1.0 - state.done
         # reward
         reward = (
-            reward_gaits * 10.0
+            reward_gaits * 15.0
             + reward_air_time * 0.0
             + reward_pos * 0.0
             + reward_upright * 0.5
