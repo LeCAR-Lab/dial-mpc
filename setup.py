@@ -4,7 +4,7 @@ setup(name='dial-mpc',
       author="Haoru Xue",
       author_email="haoru-xue@berkeley.edu",
       packages=find_packages(include="dial_mpc"),
-      version='0.0.1',
+      version='0.0.2',
       install_requires=[
           'numpy<2.0.0',
           'matplotlib',
