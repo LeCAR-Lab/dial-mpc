@@ -33,4 +33,4 @@ Finally, open Blender, open the `script` tab, run the `import_blender_go2.py` or
 
 ## Credit
 
-[Huy Hua Mujoco-blender Render](https://github.com/real-stanford/scalingup/blob/master/docs/visualization.md)
+[Huy Ha Mujoco-blender Render](https://github.com/real-stanford/scalingup/blob/master/docs/visualization.md)
