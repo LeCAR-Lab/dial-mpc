@@ -54,7 +54,9 @@ class Mocap4ROS2InterfaceNode(Node):
             rotation = r2 * r1
         elif self.up_axis == "z":
             rotation = r1
-        rpy = rotation.as_euler("xyz")
+        q_final = rotation.as_quat()
+        rpy = euler_from_quaternion(q_final, 'rxyz')
+        # rpy = rotation.as_euler("xyz")
         
         translation = np.array([body.pose.position.x, body.pose.position.y, body.pose.position.z])
         translation = r2.apply(translation)

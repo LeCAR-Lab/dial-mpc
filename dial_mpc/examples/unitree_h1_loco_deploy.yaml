@@ -21,18 +21,18 @@ leg_control: torque
 action_scale: 1.0
 
 # H1
-default_vx: 0.1
+default_vx: 0.0
 default_vy: 0.0
 default_vyaw: 0.0
 ramp_up_time: 3.0
-gait: walk
+gait: jog
 
 # Sim
 robot_name: "unitree_h1"
 scene_name: "scene_h1_loco.xml"
 sim_leg_control: torque
 plot: false
-record: false
+record: true
 real_time_factor: 1.0
 sim_dt: 0.005
 sync_mode: false

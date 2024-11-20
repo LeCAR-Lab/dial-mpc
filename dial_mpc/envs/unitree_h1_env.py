@@ -586,17 +586,17 @@ class UnitreeH1LocoEnvConfig(BaseEnvConfig):
     ))
     kd: Union[float, jax.Array] = field(default_factory=lambda: jnp.array(
         [
-            5.0,
-            5.0,
-            5.0,  # left hips
-            5.0,
-            2.0,  # left knee, ankle
-            5.0,
-            5.0,
-            5.0,  # right hips
-            5.0,
-            2.0,  # right knee, ankle
-            5.0,  # torso
+            3.0,
+            3.0,
+            3.0,  # left hips
+            3.0,
+            0.0,  # left knee, ankle
+            3.0,
+            3.0,
+            3.0,  # right hips
+            3.0,
+            0.0,  # right knee, ankle
+            3.0,  # torso
         ]
     ))
     default_vx: float = 1.0
@@ -649,14 +649,14 @@ class UnitreeH1LocoEnv(BaseEnv):
         # joint sampling range
         self.joint_range = jnp.array(
             [
-                [-0.2, 0.2],
-                [-0.2, 0.2],
+                [-0.15, 0.15],
+                [-0.15, 0.15],
                 [-0.6, 0.6],
                 [0.0, 1.5],
                 [-0.6, 0.4],
 
-                [-0.2, 0.2],
-                [-0.2, 0.2],
+                [-0.15, 0.15],
+                [-0.15, 0.15],
                 [-0.6, 0.6],
                 [0.0, 1.5],
                 [-0.6, 0.4],
@@ -810,9 +810,9 @@ class UnitreeH1LocoEnv(BaseEnv):
         reward_alive = 1.0 - state.done
         # reward
         reward = (
-            reward_gaits * 15.0
+            reward_gaits * 10.0
             + reward_air_time * 0.0
-            + reward_pos * 0.0
+            + reward_pos * 0.2
             + reward_upright * 0.5
             + reward_yaw * 0.5
             # + reward_pose * 0.0
