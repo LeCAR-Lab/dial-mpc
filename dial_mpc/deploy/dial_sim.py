@@ -189,16 +189,12 @@ class DialSim:
                 for j in range(self.mj_model.nu):
                     r0 = self.refs_shared[i, j, :]
                     r1 = self.refs_shared[i + 1, j, :]
-                    mujoco.mjv_makeConnector(
+                    mujoco.mjv_connector(
                         viewer.user_scn.geoms[i * self.mj_model.nu + j],
-                        type=mujoco.mjtGeom.mjGEOM_CAPSULE,
-                        width=0.02,
-                        a0=r0[0],
-                        a1=r0[1],
-                        a2=r0[2],
-                        b0=r1[0],
-                        b1=r1[1],
-                        b2=r1[2],
+                        mujoco.mjtGeom.mjGEOM_CAPSULE,
+                        0.02,
+                        r0,
+                        r1,
                     )
             if self.sync_mode:
                 while self.t <= (self.plan_time_shared[0] + self.ctrl_dt):
