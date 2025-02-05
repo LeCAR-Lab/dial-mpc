@@ -18,7 +18,6 @@ from jax_cosmo.scipy.interpolate import InterpolatedUnivariateSpline
 import functools
 
 from brax.io import html
-import brax.envs as brax_envs
 
 import dial_mpc.envs as dial_envs
 from dial_mpc.utils.io_utils import get_example_path, load_dataclass_from_dict
@@ -214,8 +213,8 @@ def main():
         env_config_type, config_dict, convert_list_to_array=True
     )
 
-    print(emoji.emojize(":rocket:") + "Creating environment")
-    env = brax_envs.get_environment(dial_config.env_name, config=env_config)
+    print(emoji.emojize(":rocket:") + " Creating environment")
+    env = dial_envs.get_environment(dial_config.env_name)(env_config)
     reset_env = jax.jit(env.reset)
     step_env = jax.jit(env.step)
     mbdpi = MBDPI(dial_config, env)

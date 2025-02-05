@@ -229,7 +229,6 @@ Example environment file (`my_env.py`):
 ```python
 from dataclasses import dataclass
 
-from brax import envs as brax_envs
 from brax.envs.base import State
 
 from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
@@ -257,7 +256,7 @@ class MyEnv(BaseEnv):
     def step(self, state: State, action: jax.Array) -> State:
         # TODO: implement step
 
-brax_envs.register_environment("my_env_name", MyEnv)
+dial_envs.register_environment("my_env_name", MyEnv)
 dial_envs.register_config("my_env_name", MyEnvConfig)
 ```
 

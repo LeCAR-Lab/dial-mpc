@@ -18,7 +18,6 @@ import jax
 from jax import numpy as jnp
 from mujoco import mjx
 
-import brax.envs as brax_envs
 from brax.envs.base import Env as BraxEnv
 from brax.envs.base import State
 from brax.mjx.base import State as MjxState
@@ -280,7 +279,7 @@ def main(args=None):
     env_config = load_dataclass_from_dict(
         env_config_type, config_dict, convert_list_to_array=True
     )
-    env = brax_envs.get_environment(dial_config.env_name, config=env_config)
+    env = dial_envs.get_environment(dial_config.env_name)(env_config)
 
     mbd_publisher = MBDPublisher(env, env_config, dial_config)
 

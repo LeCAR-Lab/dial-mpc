@@ -10,7 +10,6 @@ from functools import partial
 from brax import math
 import brax.base as base
 from brax.base import System
-from brax import envs as brax_envs
 from brax.envs.base import PipelineEnv, State
 from brax.io import html, mjcf, model
 
@@ -901,6 +900,3 @@ class UnitreeH1LocoEnv(BaseEnv):
         new_ang_vel_cmd = jnp.array([0.0, 0.0, ang_vel_yaw[0]])
         return new_lin_vel_cmd, new_ang_vel_cmd
 
-brax_envs.register_environment("unitree_h1_walk", UnitreeH1WalkEnv)
-brax_envs.register_environment("unitree_h1_push_crate", UnitreeH1PushCrateEnv)
-brax_envs.register_environment("unitree_h1_loco", UnitreeH1LocoEnv)

@@ -10,7 +10,6 @@ from functools import partial
 from brax import math
 import brax.base as base
 from brax.base import System
-from brax import envs as brax_envs
 from brax.envs.base import PipelineEnv, State
 from brax.io import html, mjcf, model
 
@@ -801,8 +800,3 @@ class UnitreeGo2CrateEnv(UnitreeGo2Env):
         state.info["ang_vel_tar"] = jnp.array([0.0, 0.0, 0.0])
         state.info["yaw_tar"] = 0.0
         return state
-
-
-brax_envs.register_environment("unitree_go2_walk", UnitreeGo2Env)
-brax_envs.register_environment("unitree_go2_seq_jump", UnitreeGo2SeqJumpEnv)
-brax_envs.register_environment("unitree_go2_crate_climb", UnitreeGo2CrateEnv)
