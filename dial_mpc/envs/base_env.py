@@ -62,6 +62,7 @@ class BaseEnv:
         Make the system for the environment. Called in BaseEnv.__init__.
         """
         mj_model = self._load_mj_model(config)
+        mj_model.opt.timestep = config.dt
         return mjcf.load_model(mj_model)
 
     @partial(jax.jit, static_argnums=(0,))
@@ -108,3 +109,17 @@ class BaseEnv:
     def step(self, state: DialState, action: jax.Array) -> DialState:
         raise NotImplementedError
 
+    @partial(jax.jit, static_argnums=(0,))
+    def multiple_step(self, state: DialState, actions: jax.Array) -> DialState:
+        raise NotImplementedError
+
+    @partial(jax.jit, static_argnums=(0,))
+    def multiple_step_physics_step(self, mjx_data: Data, actions: jax.Array) -> Tuple[Data, Data]:
+        """
+        Take a physics step using the mujoco mjx backend.
+        """
+        def f(data, action):
+            data = data.replace(ctrl=action)
+            data_next = self.physics_step(data)
+            return data_next, data_next
+        return jax.lax.scan(f, mjx_data, actions)

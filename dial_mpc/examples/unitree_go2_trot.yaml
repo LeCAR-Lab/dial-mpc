@@ -7,7 +7,7 @@ env_name: unitree_go2_walk
 Nsample: 2048
 Hsample: 16
 Hnode: 4
-Ndiffuse: 2
+Ndiffuse: 1
 Ndiffuse_init: 10
 temp_sample: 0.05
 horizon_diffuse_factor: 0.9
@@ -17,7 +17,7 @@ update_method: mppi
 # Base environment
 dt: 0.02
 timestep: 0.02
-leg_control: torque
+leg_control: position
 action_scale: 1.0
 
 # Go2

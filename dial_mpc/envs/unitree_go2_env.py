@@ -93,7 +93,7 @@ class UnitreeGo2Env(BaseEnv):
         self._feet_site_id = jnp.array(feet_site_id)
 
     def _load_mj_model(self, config: UnitreeGo2EnvConfig) -> Model:
-        model_path = str(get_model_path("unitree_go2", "mjx_scene_force.xml"))
+        model_path = str(get_model_path("unitree_go2", "mjx_scene_position.xml"))
         mj_model = mujoco.MjModel.from_xml_path(model_path)
         mj_model.opt.timestep = config.timestep
         return mj_model
@@ -239,6 +239,106 @@ class UnitreeGo2Env(BaseEnv):
 
         state = replace(state, data=data_next, done=done, obs=obs, reward=reward)
 
+        return state
+    
+    @partial(jax.jit, static_argnums=(0,))
+    def multiple_step(self, state: DialState, actions: jax.Array) -> DialState:
+        # physics step all at once
+        info = state.info
+        data = state.data
+        rng, _ = jax.random.split(state.info["rng"], 2)
+        joint_targets = jax.vmap(self.act2joint, in_axes=0)(actions)
+        if self._config.leg_control == "position":
+            ctrls = joint_targets
+        elif self._config.leg_control == "torque":
+            raise "Torque control not implemented for multiple step"
+        data_final: Data
+        data_stage: Data
+        data_final, data_stage = self.multiple_step_physics_step(state.data, ctrls)
+        # return data_stage
+
+        x, xd, xquat = data_stage.xpos, data_stage.cvel, data_stage.xquat
+
+        obs = self._get_obs(data_final, state.info)
+
+        time = jnp.linspace(info["step"] * self._config.dt, info["step"] * self._config.dt + self._config.dt * len(actions), len(actions), endpoint=False, dtype=jnp.float32)
+        # reward
+        # total gaits reward
+        z_feets = data_stage.site_xpos[:, self._feet_site_id, 2]
+        duty_ratio, cadence, amplitude = self._gait_params[self._gait]
+        phases = self._gait_phase[self._gait]
+        z_feet_tars = get_foot_step(
+            duty_ratio, cadence, amplitude, phases, time
+        ).T  # [len(actions), 4]
+        reward_gaits = -jnp.sum(((z_feet_tars - z_feets) / 0.05) ** 2)
+        
+        # total position reward
+        pos_tars = (
+            info["pos_tar"] + info["vel_tar"] * self._config.dt * time[:, None]
+        )
+        pos = x[:, self._torso_idx]
+        Rs = jax.vmap(math.quat_to_3x3, in_axes=0)(xquat[:, self._torso_idx])
+        head_vec = jnp.array([0.285, 0.0, 0.0])
+        head_pos = pos + jax.vmap(jnp.dot, in_axes=(0, None))(Rs, head_vec)
+        reward_pos = -jnp.sum((head_pos - pos_tars) ** 2)
+
+        # total upright reward
+        vec_tars = jnp.array([0.0, 0.0, 1.0])
+        vec = jax.vmap(math.rotate, in_axes=(None, 0))(vec_tars, xquat[:, self._torso_idx])
+        reward_upright = -jnp.sum(jnp.square(vec - vec_tars))
+
+        # total yaw orientation reward
+        yaw_tars = (
+            info["yaw_tar"] + info["ang_vel_tar"][2] * self._config.dt * time[:, None]
+        )
+        yaw = jax.vmap(math.quat_to_euler, in_axes=0)(xquat[:, self._torso_idx])[:, 2]
+        d_yaw = yaw - yaw_tars
+        reward_yaw = -jnp.sum(jnp.square(jnp.atan2(jnp.sin(d_yaw), jnp.cos(d_yaw))))
+
+        # total velocity reward
+        vb = jax.vmap(global_to_body_velocity, in_axes=(0, 0))(
+            xd[:, self._torso_idx, 3:], xquat[:, self._torso_idx]
+        )
+        ab = jax.vmap(global_to_body_velocity, in_axes=(0, 0))(
+            xd[:, self._torso_idx, :3] * jnp.pi / 180.0, xquat[:, self._torso_idx]
+        )
+        reward_vel = -jnp.sum((vb[:, :2] - info["vel_tar"][:2]) ** 2)
+        reward_ang_vel = -jnp.sum((ab[:, 2] - info["ang_vel_tar"][2]) ** 2)
+
+        # total height reward
+        reward_height = -jnp.sum((x[:, self._torso_idx, 2] - info["pos_tar"][2]) ** 2)
+
+        # total energy reward
+        reward_energy = -jnp.sum(
+            jnp.maximum(ctrls * data_stage.qvel[:, 6:] / 160.0, 0.0) ** 2
+        )
+
+        # total alive reward
+        reward_alive = 1.0
+
+        # total reward
+        reward = (
+            reward_gaits * 0.1
+            + reward_pos * 0.0
+            + reward_upright * 0.5
+            + reward_yaw * 0.3
+            # + reward_pose * 0.0
+            + reward_vel * 1.0
+            + reward_ang_vel * 1.0
+            + reward_height * 1.0
+            + reward_energy * 0.00
+            + reward_alive * 0.0
+        )
+        
+        done = 0.0
+
+        info["step"] += len(actions)
+        info["rng"] = rng
+        info["z_feet"] = z_feets
+        info["z_feet_tar"] = z_feet_tars
+        info["last_ctrl"] = ctrls[-1]
+
+        state = replace(state, data=data_stage, done=done, obs=obs, reward=reward)
         return state
 
     def _get_obs(

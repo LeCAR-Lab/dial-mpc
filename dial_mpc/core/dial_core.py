@@ -83,6 +83,7 @@ class MBDPI:
         # setup function
         self.rollout_us = jax.jit(functools.partial(rollout_us, self.env.step))
         self.rollout_us_vmap = jax.jit(jax.vmap(self.rollout_us, in_axes=(None, 0)))
+        self.rollout_us_vmap_test = jax.jit(jax.vmap(self.env.multiple_step, in_axes=(None, 0)))
         self.node2u_vmap = jax.jit(
             jax.vmap(self.node2u, in_axes=(1), out_axes=(1))
         )  # process (horizon, node)
@@ -121,12 +122,14 @@ class MBDPI:
         us = self.node2u_vvmap(Y0s)
 
         # esitimate mu_0tm1
-        rewss, mjx_datass = self.rollout_us_vmap(state, us)
-        rew_Ybar_i = rewss[-1].mean()
+        # rewss, mjx_datass = self.rollout_us_vmap(state, us)
+        new_state = self.rollout_us_vmap_test(state, us)
+        rews = new_state.reward
+        mjx_datass = new_state.data
+        rew_Ybar_i = rews[-1]
         qss = mjx_datass.qpos
         qdss = mjx_datass.qvel
         xss = mjx_datass.xpos
-        rews = rewss.mean(axis=-1)
         logp0 = (rews - rew_Ybar_i) / rews.std(axis=-1) / self.args.temp_sample
 
         weights = jax.nn.softmax(logp0)
@@ -253,6 +256,9 @@ def main():
             )
             rews_plan.append(info["rews"][-1].mean())
             infos.append(info)
+            Y0.block_until_ready()
+            info["xbar"].block_until_ready()
+
             freq = 1 / (time.time() - t0)
             pbar.set_postfix({"rew": f"{state.reward:.2e}", "freq": f"{freq:.2f}"})
 

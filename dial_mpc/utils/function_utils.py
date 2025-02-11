@@ -41,3 +41,33 @@ def get_foot_step(duty_ratio, cadence, amplitude, phases, time):
         duty_ratio,
     )
     return h_steps
+
+
+def test_get_foot_step():
+    import matplotlib.pyplot as plt
+
+    # Parameters
+    gait_phase = jnp.array([0.0, 0.5, 0.5, 0.0])
+    duty_ratio, cadence, amplitude = jnp.array([0.45, 2, 0.08])
+
+    time = jnp.linspace(0, 2, 1000)
+
+    zs = []
+
+    for t in time:
+        zs.append(get_foot_step(duty_ratio, cadence, amplitude, gait_phase, t))
+
+    zs1 = jnp.array(zs)
+
+    plt.plot(time, zs1)
+    plt.show()
+
+    zs2 = get_foot_step(duty_ratio, cadence, amplitude, gait_phase, time)
+
+    plt.plot(time, zs2.T)
+    plt.show()
+
+    assert jnp.allclose(zs1, zs2.T)
+
+if __name__ == "__main__":
+    test_get_foot_step()

@@ -6,7 +6,7 @@
         <flag eulerdamp="disable" />
     </option> -->
 
-    <option iterations="2" ls_iterations="5">
+    <option iterations="3" ls_iterations="5" integrator="implicitfast">
         <flag eulerdamp="disable" />
     </option>
 
