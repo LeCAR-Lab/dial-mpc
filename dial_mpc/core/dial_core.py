@@ -294,26 +294,22 @@ def main():
             )
         )
         xdata.append(infos[i]["xbar"][-1])
+
+        # make brax state
+        # reference: https://github.com/google/brax/blob/241f9bc5bbd003f9cfc9ded7613388e2fe125af6/brax/mjx/pipeline.py#L26
+        elasticity = jnp.zeros(mjx_data.contact.pos.shape[0])
+        body1 = jnp.array(env.system.geom_bodyid)[mjx_data.contact.geom1] - 1
+        body2 = jnp.array(env.system.geom_bodyid)[mjx_data.contact.geom2] - 1
+        link_idx = (body1, body2)
         brax_state = PipelineState(
             q=mjx_data.qpos,
             qd=mjx_data.qvel,
-            x=Transform(pos=mjx_data.xpos, rot=mjx_data.xquat),
-            xd=Motion(vel=mjx_data.cvel[:, 3:], ang=mjx_data.cvel[:, :3] * 180 / jnp.pi),
+            x=Transform(pos=mjx_data.xpos[1:, :], rot=mjx_data.xquat[1:, :]),
+            xd=Motion(vel=mjx_data.cvel[1:, 3:], ang=mjx_data.cvel[1:, :3]),
             contact=Contact(
-                dist=mjx_data.contact.dist,
-                pos=mjx_data.contact.pos,
-                frame=mjx_data.contact.frame,
-                includemargin=mjx_data.contact.includemargin,
-                solref=mjx_data.contact.solref,
-                solimp=mjx_data.contact.solimp,
-                solreffriction=mjx_data.contact.solreffriction,
-                dim=mjx_data.contact.dim,
-                geom1=mjx_data.contact.geom1,
-                geom2=mjx_data.contact.geom2,
-                geom=mjx_data.contact.geom,
-                efc_address=mjx_data.contact.efc_address,
-                link_idx=jax.Array(),
-                elasticity=jax.Array(),
+                link_idx=link_idx,
+                elasticity=elasticity,
+                **mjx_data.contact.__dict__
             ),
         )
         brax_rollout.append(brax_state)

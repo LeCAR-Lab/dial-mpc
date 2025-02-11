@@ -116,8 +116,6 @@ class UnitreeGo2Env(BaseEnv):
             "z_feet": jnp.zeros(4),
             "z_feet_tar": jnp.zeros(4),
             "randomize_target": self._config.randomize_tasks,
-            "last_contact": jnp.zeros(4, dtype=jnp.bool),
-            "feet_air_time": jnp.zeros(4),
             "last_ctrl": jnp.zeros(self.mjx_model.nv),
         }
         obs = self._get_obs(data, state_info)
@@ -174,52 +172,41 @@ class UnitreeGo2Env(BaseEnv):
             duty_ratio, cadence, amplitude, phases, info["step"] * self._config.dt
         )
         reward_gaits = -jnp.sum(((z_feet_tar - z_feet) / 0.05) ** 2)
-        # foot contact data based on z-position
-        foot_pos = data_next.site_xpos[
-            self._feet_site_id
-        ]  # pytype: disable=attribute-error
-        foot_contact_z = foot_pos[:, 2] - self._foot_radius
-        contact = foot_contact_z < 1e-3  # a mm or less off the floor
-        contact_filt_mm = contact | info["last_contact"]
-        contact_filt_cm = (foot_contact_z < 3e-2) | info["last_contact"]
-        first_contact = (info["feet_air_time"] > 0) * contact_filt_mm
-        info["feet_air_time"] += self._config.dt
-        reward_air_time = jnp.sum((info["feet_air_time"] - 0.1) * first_contact)
         # position reward
         pos_tar = (
             info["pos_tar"] + info["vel_tar"] * self._config.dt * info["step"]
         )
-        pos = x[self._torso_idx - 1]
-        R = math.quat_to_3x3(xquat[self._torso_idx - 1])
+        pos = x[self._torso_idx]
+        R = math.quat_to_3x3(xquat[self._torso_idx])
         head_vec = jnp.array([0.285, 0.0, 0.0])
         head_pos = pos + jnp.dot(R, head_vec)
         reward_pos = -jnp.sum((head_pos - pos_tar) ** 2)
         # stay upright reward
         vec_tar = jnp.array([0.0, 0.0, 1.0])
-        vec = math.rotate(vec_tar, xquat[0])
+        vec = math.rotate(vec_tar, xquat[self._torso_idx])
         reward_upright = -jnp.sum(jnp.square(vec - vec_tar))
         # yaw orientation reward
         yaw_tar = (
             info["yaw_tar"]
             + info["ang_vel_tar"][2] * self._config.dt * info["step"]
         )
-        yaw = math.quat_to_euler(xquat[self._torso_idx - 1])[2]
+        yaw = math.quat_to_euler(xquat[self._torso_idx])[2]
         d_yaw = yaw - yaw_tar
         reward_yaw = -jnp.square(jnp.atan2(jnp.sin(d_yaw), jnp.cos(d_yaw)))
         # stay to norminal pose reward
         # reward_pose = -jnp.sum(jnp.square(joint_targets - self._default_pose))
         # velocity reward
         vb = global_to_body_velocity(
-            xd[self._torso_idx - 1, 3:], xquat[self._torso_idx - 1]
+            xd[self._torso_idx, 3:], xquat[self._torso_idx]
         )
         ab = global_to_body_velocity(
-            xd[self._torso_idx - 1, :3] * jnp.pi / 180.0, xquat[self._torso_idx - 1]
+            xd[self._torso_idx, :3] * jnp.pi / 180.0, xquat[self._torso_idx]
         )
         reward_vel = -jnp.sum((vb[:2] - info["vel_tar"][:2]) ** 2)
         reward_ang_vel = -jnp.sum((ab[2] - info["ang_vel_tar"][2]) ** 2)
         # height reward
         reward_height = -jnp.sum(
-            (x[self._torso_idx - 1, 2] - info["pos_tar"][2]) ** 2
+            (x[self._torso_idx, 2] - info["pos_tar"][2]) ** 2
         )
         # energy reward
         reward_energy = -jnp.sum(
@@ -230,7 +217,6 @@ class UnitreeGo2Env(BaseEnv):
         # reward
         reward = (
             reward_gaits * 0.1
-            + reward_air_time * 0.0
             + reward_pos * 0.0
             + reward_upright * 0.5
             + reward_yaw * 0.3
@@ -242,22 +228,13 @@ class UnitreeGo2Env(BaseEnv):
             + reward_alive * 0.0
         )
 
-        # done
-        up = jnp.array([0.0, 0.0, 1.0])
-        joint_angles = data_next.qpos[7:]
-        done = jnp.dot(math.rotate(up, xquat[self._torso_idx - 1]), up) < 0
-        done |= jnp.any(joint_angles < self.joint_range[:, 0])
-        done |= jnp.any(joint_angles > self.joint_range[:, 1])
-        done |= data_next.xpos[self._torso_idx - 1, 2] < 0.18
-        done = done.astype(jnp.float32)
+        done = 0.0
 
         # state management
         info["step"] += 1
         info["rng"] = rng
         info["z_feet"] = z_feet
         info["z_feet_tar"] = z_feet_tar
-        info["feet_air_time"] *= ~contact_filt_mm
-        info["last_contact"] = contact
         info["last_ctrl"] = ctrl
 
         state = replace(state, data=data_next, done=done, obs=obs, reward=reward)
@@ -271,10 +248,10 @@ class UnitreeGo2Env(BaseEnv):
     ) -> jax.Array:
         x, xd = data.xpos, data.cvel
         vb = global_to_body_velocity(
-            xd[self._torso_idx - 1, 3:], data.xquat[self._torso_idx - 1]
+            xd[self._torso_idx, 3:], data.xquat[self._torso_idx]
         )
         ab = global_to_body_velocity(
-            xd[self._torso_idx - 1, :3] * jnp.pi / 180.0, data.xquat[self._torso_idx - 1]
+            xd[self._torso_idx, :3] * jnp.pi / 180.0, data.xquat[self._torso_idx]
         )
         obs = jnp.concatenate(
             [
