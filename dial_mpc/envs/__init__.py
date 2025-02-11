@@ -15,6 +15,8 @@ from dial_mpc.envs.unitree_go2_env import (
     UnitreeGo2SeqJumpEnv,
     UnitreeGo2CrateEnv,
 )
+from dial_mpc.envs.base_env import BaseEnv
+from dial_mpc.config.base_env_config import BaseEnvConfig
 
 _configs = {
     "unitree_h1_walk": UnitreeH1WalkEnvConfig,
@@ -39,11 +41,11 @@ def register_config(name: str, config: Any):
     _configs[name] = config
 
 
-def get_config(name: str) -> Any:
+def get_config(name: str) -> BaseEnvConfig:
     return _configs[name]
 
 
-def get_environment(name: str) -> Any:
+def get_environment(name: str) -> BaseEnv:
     return _envs[name]
 
 

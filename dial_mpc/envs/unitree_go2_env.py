@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Dict, Sequence, Tuple, Union, List
 
 import numpy as np
@@ -15,8 +15,9 @@ from brax.io import html, mjcf, model
 
 import mujoco
 from mujoco import mjx
+from mujoco.mjx import Data, Contact, Model
 
-from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig
+from dial_mpc.envs.base_env import BaseEnv, BaseEnvConfig, DialState
 from dial_mpc.utils.function_utils import global_to_body_velocity, get_foot_step
 from dial_mpc.utils.io_utils import get_model_path
 
@@ -56,11 +57,11 @@ class UnitreeGo2Env(BaseEnv):
         }
 
         self._torso_idx = mujoco.mj_name2id(
-            self.sys.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, "base"
+            self.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, "base"
         )
 
-        self._init_q = jnp.array(self.sys.mj_model.keyframe("home").qpos)
-        self._default_pose = self.sys.mj_model.keyframe("home").qpos[7:]
+        self._init_q = jnp.array(self.mj_model.keyframe("home").qpos)
+        self._default_pose = self.mj_model.keyframe("home").qpos[7:]
 
         self.joint_range = jnp.array(
             [
@@ -85,22 +86,25 @@ class UnitreeGo2Env(BaseEnv):
             "RR_foot",
         ]
         feet_site_id = [
-            mujoco.mj_name2id(self.sys.mj_model, mujoco.mjtObj.mjOBJ_SITE.value, f)
+            mujoco.mj_name2id(self.mj_model, mujoco.mjtObj.mjOBJ_SITE.value, f)
             for f in feet_site
         ]
         assert not any(id_ == -1 for id_ in feet_site_id), "Site not found."
         self._feet_site_id = jnp.array(feet_site_id)
 
-    def make_system(self, config: UnitreeGo2EnvConfig) -> System:
-        model_path = get_model_path("unitree_go2", "mjx_scene_force.xml")
-        sys = mjcf.load(model_path)
-        sys = sys.tree_replace({"opt.timestep": config.timestep})
-        return sys
+    def _load_mj_model(self, config: UnitreeGo2EnvConfig) -> Model:
+        model_path = str(get_model_path("unitree_go2", "mjx_scene_force.xml"))
+        mj_model = mujoco.MjModel.from_xml_path(model_path)
+        mj_model.opt.timestep = config.timestep
+        return mj_model
 
-    def reset(self, rng: jax.Array) -> State:  # pytype: disable=signature-mismatch
-        rng, key = jax.random.split(rng)
+    def reset(self, rng: jax.Array) -> DialState:  # pytype: disable=signature-mismatch
+        data = mjx.make_data(self.mjx_model)
+        qpos = data.qpos.at[:].set(self._init_q)
+        qvel = data.qvel.at[:].set(jnp.zeros(self.mjx_model.nv))
+        data = data.replace(qpos=qpos, qvel=qvel)
 
-        pipeline_state = self.pipeline_init(self._init_q, jnp.zeros(self._nv))
+        reward, done = jnp.zeros(2)
 
         state_info = {
             "rng": rng,
@@ -114,15 +118,15 @@ class UnitreeGo2Env(BaseEnv):
             "randomize_target": self._config.randomize_tasks,
             "last_contact": jnp.zeros(4, dtype=jnp.bool),
             "feet_air_time": jnp.zeros(4),
+            "last_ctrl": jnp.zeros(self.mjx_model.nv),
         }
-
-        obs = self._get_obs(pipeline_state, state_info)
-        reward, done = jnp.zeros(2)
-        metrics = {}
-        state = State(pipeline_state, obs, reward, done, metrics, state_info)
+        obs = self._get_obs(data, state_info)
+        state = DialState(data, state_info, obs, reward, done)
         return state
 
-    def step(self, state: State, action: jax.Array) -> State:
+    def step(self, state: DialState, action: jax.Array) -> DialState:
+        info = state.info
+        data = state.data
         rng, cmd_rng = jax.random.split(state.info["rng"], 2)
 
         # physics step
@@ -130,12 +134,13 @@ class UnitreeGo2Env(BaseEnv):
         if self._config.leg_control == "position":
             ctrl = joint_targets
         elif self._config.leg_control == "torque":
-            ctrl = self.act2tau(action, state.pipeline_state)
-        pipeline_state = self.pipeline_step(state.pipeline_state, ctrl)
-        x, xd = pipeline_state.x, pipeline_state.xd
+            ctrl = self.act2tau(action, data)
+        data = data.replace(ctrl=ctrl)
+        data_next = self.physics_step(data)
+        x, xd, xquat = data_next.xpos, data_next.cvel, data_next.xquat
 
         # observation data
-        obs = self._get_obs(pipeline_state, state.info)
+        obs = self._get_obs(data_next, info)
 
         # switch to new target if randomize_target is True
         def dont_randomize():
@@ -148,80 +153,80 @@ class UnitreeGo2Env(BaseEnv):
             return self.sample_command(cmd_rng)
 
         vel_tar, ang_vel_tar = jax.lax.cond(
-            (state.info["randomize_target"]) & (state.info["step"] % 500 == 0),
+            (info["randomize_target"]) & (info["step"] % 500 == 0),
             randomize,
             dont_randomize,
         )
-        state.info["vel_tar"] = jnp.minimum(
-            vel_tar * state.info["step"] * self.dt / self._config.ramp_up_time, vel_tar
+        info["vel_tar"] = jnp.minimum(
+            vel_tar * info["step"] * self._config.dt / self._config.ramp_up_time, vel_tar
         )
-        state.info["ang_vel_tar"] = jnp.minimum(
-            ang_vel_tar * state.info["step"] * self.dt / self._config.ramp_up_time,
+        info["ang_vel_tar"] = jnp.minimum(
+            ang_vel_tar * info["step"] * self._config.dt / self._config.ramp_up_time,
             ang_vel_tar,
         )
 
         # reward
         # gaits reward
-        z_feet = pipeline_state.site_xpos[self._feet_site_id][:, 2]
+        z_feet = data_next.site_xpos[self._feet_site_id][:, 2]
         duty_ratio, cadence, amplitude = self._gait_params[self._gait]
         phases = self._gait_phase[self._gait]
         z_feet_tar = get_foot_step(
-            duty_ratio, cadence, amplitude, phases, state.info["step"] * self.dt
+            duty_ratio, cadence, amplitude, phases, info["step"] * self._config.dt
         )
         reward_gaits = -jnp.sum(((z_feet_tar - z_feet) / 0.05) ** 2)
         # foot contact data based on z-position
-        foot_pos = pipeline_state.site_xpos[
+        foot_pos = data_next.site_xpos[
             self._feet_site_id
         ]  # pytype: disable=attribute-error
         foot_contact_z = foot_pos[:, 2] - self._foot_radius
         contact = foot_contact_z < 1e-3  # a mm or less off the floor
-        contact_filt_mm = contact | state.info["last_contact"]
-        contact_filt_cm = (foot_contact_z < 3e-2) | state.info["last_contact"]
-        first_contact = (state.info["feet_air_time"] > 0) * contact_filt_mm
-        state.info["feet_air_time"] += self.dt
-        reward_air_time = jnp.sum((state.info["feet_air_time"] - 0.1) * first_contact)
+        contact_filt_mm = contact | info["last_contact"]
+        contact_filt_cm = (foot_contact_z < 3e-2) | info["last_contact"]
+        first_contact = (info["feet_air_time"] > 0) * contact_filt_mm
+        info["feet_air_time"] += self._config.dt
+        reward_air_time = jnp.sum((info["feet_air_time"] - 0.1) * first_contact)
         # position reward
         pos_tar = (
-            state.info["pos_tar"] + state.info["vel_tar"] * self.dt * state.info["step"]
+            info["pos_tar"] + info["vel_tar"] * self._config.dt * info["step"]
         )
-        pos = x.pos[self._torso_idx - 1]
-        R = math.quat_to_3x3(x.rot[self._torso_idx - 1])
+        pos = x[self._torso_idx - 1]
+        R = math.quat_to_3x3(xquat[self._torso_idx - 1])
         head_vec = jnp.array([0.285, 0.0, 0.0])
         head_pos = pos + jnp.dot(R, head_vec)
         reward_pos = -jnp.sum((head_pos - pos_tar) ** 2)
         # stay upright reward
         vec_tar = jnp.array([0.0, 0.0, 1.0])
-        vec = math.rotate(vec_tar, x.rot[0])
+        vec = math.rotate(vec_tar, xquat[0])
         reward_upright = -jnp.sum(jnp.square(vec - vec_tar))
         # yaw orientation reward
         yaw_tar = (
-            state.info["yaw_tar"]
-            + state.info["ang_vel_tar"][2] * self.dt * state.info["step"]
+            info["yaw_tar"]
+            + info["ang_vel_tar"][2] * self._config.dt * info["step"]
         )
-        yaw = math.quat_to_euler(x.rot[self._torso_idx - 1])[2]
+        yaw = math.quat_to_euler(xquat[self._torso_idx - 1])[2]
         d_yaw = yaw - yaw_tar
         reward_yaw = -jnp.square(jnp.atan2(jnp.sin(d_yaw), jnp.cos(d_yaw)))
         # stay to norminal pose reward
         # reward_pose = -jnp.sum(jnp.square(joint_targets - self._default_pose))
         # velocity reward
         vb = global_to_body_velocity(
-            xd.vel[self._torso_idx - 1], x.rot[self._torso_idx - 1]
+            xd[self._torso_idx - 1, 3:], xquat[self._torso_idx - 1]
         )
         ab = global_to_body_velocity(
-            xd.ang[self._torso_idx - 1] * jnp.pi / 180.0, x.rot[self._torso_idx - 1]
+            xd[self._torso_idx - 1, :3] * jnp.pi / 180.0, xquat[self._torso_idx - 1]
         )
-        reward_vel = -jnp.sum((vb[:2] - state.info["vel_tar"][:2]) ** 2)
-        reward_ang_vel = -jnp.sum((ab[2] - state.info["ang_vel_tar"][2]) ** 2)
+        reward_vel = -jnp.sum((vb[:2] - info["vel_tar"][:2]) ** 2)
+        reward_ang_vel = -jnp.sum((ab[2] - info["ang_vel_tar"][2]) ** 2)
         # height reward
         reward_height = -jnp.sum(
-            (x.pos[self._torso_idx - 1, 2] - state.info["pos_tar"][2]) ** 2
+            (x[self._torso_idx - 1, 2] - info["pos_tar"][2]) ** 2
         )
         # energy reward
         reward_energy = -jnp.sum(
-            jnp.maximum(ctrl * pipeline_state.qvel[6:] / 160.0, 0.0) ** 2
+            jnp.maximum(ctrl * data_next.qvel[6:] / 160.0, 0.0) ** 2
         )
         # stay alive reward
-        reward_alive = 1.0 - state.done
+        reward_alive = 1.0
         # reward
         reward = (
             reward_gaits * 0.1
@@ -239,60 +244,50 @@ class UnitreeGo2Env(BaseEnv):
 
         # done
         up = jnp.array([0.0, 0.0, 1.0])
-        joint_angles = pipeline_state.q[7:]
-        done = jnp.dot(math.rotate(up, x.rot[self._torso_idx - 1]), up) < 0
+        joint_angles = data_next.qpos[7:]
+        done = jnp.dot(math.rotate(up, xquat[self._torso_idx - 1]), up) < 0
         done |= jnp.any(joint_angles < self.joint_range[:, 0])
         done |= jnp.any(joint_angles > self.joint_range[:, 1])
-        done |= pipeline_state.x.pos[self._torso_idx - 1, 2] < 0.18
+        done |= data_next.xpos[self._torso_idx - 1, 2] < 0.18
         done = done.astype(jnp.float32)
 
         # state management
-        state.info["step"] += 1
-        state.info["rng"] = rng
-        state.info["z_feet"] = z_feet
-        state.info["z_feet_tar"] = z_feet_tar
-        state.info["feet_air_time"] *= ~contact_filt_mm
-        state.info["last_contact"] = contact
+        info["step"] += 1
+        info["rng"] = rng
+        info["z_feet"] = z_feet
+        info["z_feet_tar"] = z_feet_tar
+        info["feet_air_time"] *= ~contact_filt_mm
+        info["last_contact"] = contact
+        info["last_ctrl"] = ctrl
 
-        state = state.replace(
-            pipeline_state=pipeline_state, obs=obs, reward=reward, done=done
-        )
+        state = replace(state, data=data_next, done=done, obs=obs, reward=reward)
+
         return state
 
     def _get_obs(
         self,
-        pipeline_state: base.State,
-        state_info: dict[str, Any],
+        data: Data,
+        info: dict[str, Any],
     ) -> jax.Array:
-        x, xd = pipeline_state.x, pipeline_state.xd
+        x, xd = data.xpos, data.cvel
         vb = global_to_body_velocity(
-            xd.vel[self._torso_idx - 1], x.rot[self._torso_idx - 1]
+            xd[self._torso_idx - 1, 3:], data.xquat[self._torso_idx - 1]
         )
         ab = global_to_body_velocity(
-            xd.ang[self._torso_idx - 1] * jnp.pi / 180.0, x.rot[self._torso_idx - 1]
+            xd[self._torso_idx - 1, :3] * jnp.pi / 180.0, data.xquat[self._torso_idx - 1]
         )
         obs = jnp.concatenate(
             [
-                state_info["vel_tar"],
-                state_info["ang_vel_tar"],
-                pipeline_state.ctrl,
-                pipeline_state.qpos,
+                info["vel_tar"],
+                info["ang_vel_tar"],
+                data.ctrl,
+                data.qpos,
                 vb,
                 ab,
-                pipeline_state.qvel[6:],
+                data.qvel[6:],
             ]
         )
         return obs
-
-    def render(
-        self,
-        trajectory: List[base.State],
-        camera: str | None = None,
-        width: int = 240,
-        height: int = 320,
-    ) -> Sequence[np.ndarray]:
-        camera = camera or "track"
-        return super().render(trajectory, camera=camera, width=width, height=height)
 
     def sample_command(self, rng: jax.Array) -> tuple[jax.Array, jax.Array]:
         lin_vel_x = [-1.5, 1.5]  # min max [m/s]

@@ -6,33 +6,72 @@ import jax.numpy as jnp
 from functools import partial
 
 from brax.base import System
-from brax.envs.base import PipelineEnv
+from brax.io import mjcf
+
+import mujoco
+from mujoco import mjx
+from mujoco.mjx import Data, Model
 
 from dial_mpc.config.base_env_config import BaseEnvConfig
 
 
-class BaseEnv(PipelineEnv):
+@jax.tree_util.register_dataclass
+@dataclass
+class DialState:
+    data: Data
+    info: Dict[str, Any]
+    obs: jax.Array
+    reward: jax.Array
+    done: jax.Array
+
+
+class BaseEnv:
     def __init__(self, config: BaseEnvConfig):
         assert config.dt % config.timestep == 0, "timestep must be divisible by dt"
         self._config = config
-        n_frames = int(config.dt / config.timestep)
-        sys = self.make_system(config)
-        super().__init__(sys, config.backend, n_frames, config.debug)
-
+        self.decimation = int(config.dt / config.timestep)
+        self.mj_model: Model = self._load_mj_model(config)
+        self.mjx_model: Model = self._make_mjx_model(config)
+        self.system: System = self._make_system(config)
         # joint limit definitions
-        self.physical_joint_range = self.sys.jnt_range[1:]
+        self.physical_joint_range = self.mjx_model.jnt_range[1:]
         self.joint_range = self.physical_joint_range
-        self.joint_torque_range = self.sys.actuator_ctrlrange
+        self.joint_torque_range = self.mjx_model.actuator_ctrlrange
 
         # number of everything
-        self._nv = self.sys.nv
-        self._nq = self.sys.nq
+        self.nv = self.mjx_model.nv
+        self.nq = self.mjx_model.nq
+        self.nu = self.mjx_model.nu
 
-    def make_system(self, config: BaseEnvConfig) -> System:
+    def _load_mj_model(self, config: BaseEnvConfig) -> Model:
+        """
+        Load the mujoco model for the environment. Called in BaseEnv.__init__.
+        """
+        raise NotImplementedError
+
+    def _make_mjx_model(self, config: BaseEnvConfig) -> Model:
+        """
+        Make the model for the environment. Called in BaseEnv.__init__.
+        """
+        mj_model = self._load_mj_model(config)
+        mjx_model = mjx.put_model(mj_model)
+        return mjx_model
+
+    def _make_system(self, config: BaseEnvConfig) -> System:
         """
         Make the system for the environment. Called in BaseEnv.__init__.
         """
-        raise NotImplementedError
+        mj_model = self._load_mj_model(config)
+        return mjcf.load_model(mj_model)
+
+    @partial(jax.jit, static_argnums=(0,))
+    def physics_step(self, mjx_data: Data) -> Data:
+        """
+        Take a physics step using the mujoco mjx backend.
+        """
+        def f(data, _):
+            return mjx.step(self.mjx_model, data), None
+        return jax.lax.scan(f, mjx_data, None, self.decimation)[0]
 
     @partial(jax.jit, static_argnums=(0,))
     def act2joint(self, act: jax.Array) -> jax.Array:
@@ -50,12 +89,12 @@ class BaseEnv(PipelineEnv):
         return joint_targets
 
     @partial(jax.jit, static_argnums=(0,))
-    def act2tau(self, act: jax.Array, pipline_state) -> jax.Array:
+    def act2tau(self, act: jax.Array, data: Data) -> jax.Array:
         joint_target = self.act2joint(act)
 
-        q = pipline_state.qpos[7:]
+        q = data.qpos[7:]
         q = q[: len(joint_target)]
-        qd = pipline_state.qvel[6:]
+        qd = data.qvel[6:]
         qd = qd[: len(joint_target)]
         q_err = joint_target - q
         tau = self._config.kp * q_err - self._config.kd * qd
@@ -64,3 +103,8 @@ class BaseEnv(PipelineEnv):
             tau, self.joint_torque_range[:, 0], self.joint_torque_range[:, 1]
         )
         return tau
+
+    @partial(jax.jit, static_argnums=(0,))
+    def step(self, state: DialState, action: jax.Array) -> DialState:
+        raise NotImplementedError
+

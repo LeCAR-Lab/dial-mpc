@@ -1,6 +1,7 @@
 import os
 import time
 from dataclasses import dataclass
+from typing import Callable
 import importlib
 import sys
 
@@ -16,14 +17,21 @@ import jax
 from jax import numpy as jnp
 from jax_cosmo.scipy.interpolate import InterpolatedUnivariateSpline
 import functools
+from jax.tree_util import Partial
+
+import mujoco
+import mujoco.mjx as mjx
+from mujoco.mjx import Data
 
 from brax.io import html
+from brax.base import State as PipelineState
+from brax.base import Transform, Motion, Contact
 
 import dial_mpc.envs as dial_envs
 from dial_mpc.utils.io_utils import get_example_path, load_dataclass_from_dict
 from dial_mpc.examples import examples
 from dial_mpc.core.dial_config import DialConfig
-
+from dial_mpc.envs.base_env import DialState, BaseEnv
 plt.style.use("science")
 
 # Tell XLA to use Triton GEMM, this improves steps/sec by ~30% on some GPUs
@@ -32,10 +40,10 @@ xla_flags += " --xla_gpu_triton_gemm_any=True"
 os.environ["XLA_FLAGS"] = xla_flags
 
 
-def rollout_us(step_env, state, us):
+def rollout_us(step_env: Callable[[DialState, jax.Array], DialState], state: DialState, us: jax.Array):
     def step(state, u):
         state = step_env(state, u)
-        return state, (state.reward, state.pipeline_state)
+        return state, (state.reward, state.data)
 
     _, (rews, pipline_states) = jax.lax.scan(step, state, us)
     return rews, pipline_states
@@ -48,10 +56,10 @@ def softmax_update(weights, Y0s, sigma, mu_0t):
 
 
 class MBDPI:
-    def __init__(self, args: DialConfig, env):
+    def __init__(self, args: DialConfig, env: BaseEnv):
         self.args = args
         self.env = env
-        self.nu = env.action_size
+        self.nu = env.nu
 
         self.update_fn = {
             "mppi": softmax_update,
@@ -113,11 +121,11 @@ class MBDPI:
         us = self.node2u_vvmap(Y0s)
 
         # esitimate mu_0tm1
-        rewss, pipeline_statess = self.rollout_us_vmap(state, us)
+        rewss, mjx_datass = self.rollout_us_vmap(state, us)
         rew_Ybar_i = rewss[-1].mean()
-        qss = pipeline_statess.q
-        qdss = pipeline_statess.qd
-        xss = pipeline_statess.x.pos
+        qss = mjx_datass.qpos
+        qdss = mjx_datass.qvel
+        xss = mjx_datass.xpos
         rews = rewss.mean(axis=-1)
         logp0 = (rews - rew_Ybar_i) / rews.std(axis=-1) / self.args.temp_sample
 
@@ -139,19 +147,6 @@ class MBDPI:
         }
 
         return rng, Ybar, info
-
-    def reverse(self, state, YN, rng):
-        Yi = YN
-        with tqdm(range(self.args.Ndiffuse - 1, 0, -1), desc="Diffusing") as pbar:
-            for i in pbar:
-                t0 = time.time()
-                rng, Yi, rews = self.reverse_once(
-                    state, rng, Yi, self.sigmas[i] * jnp.ones(self.args.Hnode + 1)
-                )
-                Yi.block_until_ready()
-                freq = 1 / (time.time() - t0)
-                pbar.set_postfix({"rew": f"{rews.mean():.2e}", "freq": f"{freq:.2f}"})
-        return Yi
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def shift(self, Y):
@@ -214,18 +209,16 @@ def main():
     )
 
     print(emoji.emojize(":rocket:") + " Creating environment")
-    env = dial_envs.get_environment(dial_config.env_name)(env_config)
-    reset_env = jax.jit(env.reset)
+    env: BaseEnv = dial_envs.get_environment(dial_config.env_name)(env_config)
     step_env = jax.jit(env.step)
     mbdpi = MBDPI(dial_config, env)
 
     rng, rng_reset = jax.random.split(rng)
-    state_init = reset_env(rng_reset)
+    state_init = env.reset(rng_reset)
 
     YN = jnp.zeros([dial_config.Hnode + 1, mbdpi.nu])
 
     rng_exp, rng = jax.random.split(rng)
-    # Y0 = mbdpi.reverse(state_init, YN, rng_exp)
     Y0 = YN
 
     Nstep = dial_config.n_steps
@@ -239,10 +232,10 @@ def main():
         for t in pbar:
             # forward single step
             state = step_env(state, Y0[0])
-            rollout.append(state.pipeline_state)
+            rollout.append(state.data)
             rews.append(state.reward)
             us.append(Y0[0])
-
+            
             # update Y0
             Y0 = mbdpi.shift(Y0)
 
@@ -283,40 +276,65 @@ def main():
 
     # host webpage with flask
     print("Processing rollout for visualization")
+
+    # save the rollout
+    data = []
+    xdata = []
+    brax_rollout = []
+    for i in range(len(rollout)):
+        mjx_data: Data = rollout[i]
+        data.append(
+            jnp.concatenate(
+                [
+                    jnp.array([i]),
+                    mjx_data.qpos,
+                    mjx_data.qvel,
+                    mjx_data.ctrl,
+                ]
+            )
+        )
+        xdata.append(infos[i]["xbar"][-1])
+        brax_state = PipelineState(
+            q=mjx_data.qpos,
+            qd=mjx_data.qvel,
+            x=Transform(pos=mjx_data.xpos, rot=mjx_data.xquat),
+            xd=Motion(vel=mjx_data.cvel[:, 3:], ang=mjx_data.cvel[:, :3] * 180 / jnp.pi),
+            contact=Contact(
+                dist=mjx_data.contact.dist,
+                pos=mjx_data.contact.pos,
+                frame=mjx_data.contact.frame,
+                includemargin=mjx_data.contact.includemargin,
+                solref=mjx_data.contact.solref,
+                solimp=mjx_data.contact.solimp,
+                solreffriction=mjx_data.contact.solreffriction,
+                dim=mjx_data.contact.dim,
+                geom1=mjx_data.contact.geom1,
+                geom2=mjx_data.contact.geom2,
+                geom=mjx_data.contact.geom,
+                efc_address=mjx_data.contact.efc_address,
+                link_idx=jax.Array(),
+                elasticity=jax.Array(),
+            ),
+        )
+        brax_rollout.append(brax_state)
+    data = jnp.array(data)
+    xdata = jnp.array(xdata)
+    jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_states"), data)
+    jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_predictions"), xdata)
+
+    # save the html file and run the server
     import flask
 
     app = flask.Flask(__name__)
     webpage = html.render(
-        env.sys.tree_replace({"opt.timestep": env.dt}), rollout, 1080, True
+        env.system, brax_rollout, 1080, True
     )
 
-    # save the html file
     with open(
         os.path.join(dial_config.output_dir, f"{timestamp}_brax_visualization.html"),
         "w",
     ) as f:
         f.write(webpage)
-
-    # save the rollout
-    data = []
-    xdata = []
-    for i in range(len(rollout)):
-        pipeline_state = rollout[i]
-        data.append(
-            jnp.concatenate(
-                [
-                    jnp.array([i]),
-                    pipeline_state.qpos,
-                    pipeline_state.qvel,
-                    pipeline_state.ctrl,
-                ]
-            )
-        )
-        xdata.append(infos[i]["xbar"][-1])
-    data = jnp.array(data)
-    xdata = jnp.array(xdata)
-    jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_states"), data)
-    jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_predictions"), xdata)
 
     @app.route("/")
     def index():
