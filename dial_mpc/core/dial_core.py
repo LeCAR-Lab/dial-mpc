@@ -158,7 +158,7 @@ class MBDPI:
     def shift(self, Y):
         u = self.node2u_vmap(Y)
         u = jnp.roll(u, -1, axis=0)
-        u = u.at[-1].set(jnp.zeros(self.nu))
+        u = u.at[-1].set(u[-2])
         Y = self.u2node_vmap(u)
         return Y
 
@@ -239,13 +239,14 @@ def main():
     with tqdm(range(Nstep), desc="Rollout") as pbar:
         for t in pbar:
             # forward single step
-            state = step_env(state, Y0[0])
-            rollout.append(state.pipeline_state)
-            rews.append(state.reward)
-            us.append(Y0[0])
+            for i in range(10):
+                state = step_env(state, Y0[0])
+                rollout.append(state.pipeline_state)
+                rews.append(state.reward)
+                us.append(Y0[0])
 
-            # update Y0
-            Y0 = mbdpi.shift(Y0)
+                # update Y0
+                Y0 = mbdpi.shift(Y0)
 
             n_diffuse = dial_config.Ndiffuse
             if t == 0:
@@ -299,25 +300,25 @@ def main():
         f.write(webpage)
 
     # save the rollout
-    data = []
-    xdata = []
-    for i in range(len(rollout)):
-        pipeline_state = rollout[i]
-        data.append(
-            jnp.concatenate(
-                [
-                    jnp.array([i]),
-                    pipeline_state.qpos,
-                    pipeline_state.qvel,
-                    pipeline_state.ctrl,
-                ]
-            )
-        )
-        xdata.append(infos[i]["xbar"][-1])
-    data = jnp.array(data)
-    xdata = jnp.array(xdata)
-    jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_states"), data)
-    jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_predictions"), xdata)
+    # data = []
+    # xdata = []
+    # for i in range(len(rollout)):
+    #     pipeline_state = rollout[i]
+    #     data.append(
+    #         jnp.concatenate(
+    #             [
+    #                 jnp.array([i]),
+    #                 pipeline_state.qpos,
+    #                 pipeline_state.qvel,
+    #                 pipeline_state.ctrl,
+    #             ]
+    #         )
+    #     )
+    #     xdata.append(infos[i]["xbar"][-1])
+    # data = jnp.array(data)
+    # xdata = jnp.array(xdata)
+    # jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_states"), data)
+    # jnp.save(os.path.join(dial_config.output_dir, f"{timestamp}_predictions"), xdata)
 
     @app.route("/")
     def index():
