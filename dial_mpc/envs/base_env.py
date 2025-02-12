@@ -13,7 +13,7 @@ from dial_mpc.config.base_env_config import BaseEnvConfig
 
 class BaseEnv(PipelineEnv):
     def __init__(self, config: BaseEnvConfig):
-        assert config.dt % config.timestep == 0, "timestep must be divisible by dt"
+        assert jnp.allclose(config.dt % config.timestep, 0.0), "timestep must be divisible by dt"
         self._config = config
         n_frames = int(config.dt / config.timestep)
         sys = self.make_system(config)
