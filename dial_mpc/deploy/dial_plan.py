@@ -200,16 +200,21 @@ class MBDPublisher:
                     self.dial_config.traj_diffuse_factor
                     ** (jnp.arange(n_diffuse))[:, None]
                 )
+                state = self.env.pre_step(state)
                 (self.rng, self.Y, _), info = jax.lax.scan(
                     reverse_scan, (self.rng, self.Y, state), traj_diffuse_factors
                 )
+                state = self.env.post_step(state)
                 n_diffuse = self.dial_config.Ndiffuse
             traj_diffuse_factors = (
                 self.dial_config.traj_diffuse_factor ** (jnp.arange(n_diffuse))[:, None]
-            )
-            (self.rng, self.Y, _), info = jax.lax.scan(
-                reverse_scan, (self.rng, self.Y, state), traj_diffuse_factors
-            )
+            )   
+            for i in range(len(traj_diffuse_factors)):
+                state = self.env.pre_step(state)
+                (self.rng, self.Y, _), info = reverse_scan(
+                    (self.rng, self.Y, state), traj_diffuse_factors[i]
+                )
+                state = self.env.post_step(state)
             # use position control
             actual_joint_targets = info["qbar"][:, 7:]
             x_targets = info["xbar"][-1, :, 1:, :3]

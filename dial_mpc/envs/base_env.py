@@ -7,6 +7,7 @@ from functools import partial
 
 from brax.base import System
 from brax.envs.base import PipelineEnv
+from brax.envs.base import PipelineEnv, State
 
 from dial_mpc.config.base_env_config import BaseEnvConfig
 
@@ -54,9 +55,9 @@ class BaseEnv(PipelineEnv):
         joint_target = self.act2joint(act)
 
         q = pipline_state.qpos[7:]
-        q = q[: len(joint_target)]
+        q = q[: joint_target.shape[-1]]
         qd = pipline_state.qvel[6:]
-        qd = qd[: len(joint_target)]
+        qd = qd[: joint_target.shape[-1]]
         q_err = joint_target - q
         tau = self._config.kp * q_err - self._config.kd * qd
 
@@ -64,3 +65,12 @@ class BaseEnv(PipelineEnv):
             tau, self.joint_torque_range[:, 0], self.joint_torque_range[:, 1]
         )
         return tau
+    
+    def step(self, state: State, action: jax.Array) -> State:
+        return state
+
+    def pre_step(self, state: State) -> State:
+        return state
+    
+    def post_step(self, state: State) -> State:
+        return state

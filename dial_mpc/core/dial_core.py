@@ -256,9 +256,12 @@ def main():
             traj_diffuse_factors = (
                 mbdpi.sigma_control * dial_config.traj_diffuse_factor ** (jnp.arange(n_diffuse))[:, None]
             )
-            (rng, Y0, _), info = jax.lax.scan(
-                reverse_scan, (rng, Y0, state), traj_diffuse_factors
-            )
+            for i in range(len(traj_diffuse_factors)):
+                state = mbdpi.env.pre_step(state)
+                (rng, Y0, _), info = reverse_scan(
+                    (rng, Y0, state), traj_diffuse_factors[i]
+                )
+                state = mbdpi.env.post_step(state)
             rews_plan.append(info["rews"][-1].mean())
             infos.append(info)
             freq = 1 / (time.time() - t0)
