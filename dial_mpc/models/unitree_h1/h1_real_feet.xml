@@ -10,9 +10,11 @@
       <default class="collision">
         <geom group="3" mass="0" density="0"/>
         <default class="foot">
-          <geom type="capsule" size=".014"/>
-          <default class="foot_single_capsule">
-            <geom fromto=".115 0 -0.056 -.035 0 -0.056"/>
+          <default class="foot_capsule_1">
+            <geom type="capsule" size=".014" friction="0.6" fromto=".2 -0.015 -0.056 .2 0.015 -0.056"/>
+          </default>
+          <default class="foot_capsule_2">
+            <geom type="capsule" size=".014" friction="0.6" fromto="-.1 -0.015 -0.056 -.1 0.015 -0.056"/>
           </default>
         </default>
       </default>
@@ -89,7 +91,8 @@
                   diaginertia="0.00220848 0.00218961 0.000214202"/>
                 <joint name="left_ankle" axis="0 1 0" range="-0.87 0.52"/>
                 <geom class="visual" mesh="left_ankle_link"/>
-                <geom class="foot_single_capsule"/>
+                <geom class="foot_capsule_1"/>
+                <geom class="foot_capsule_2"/>
                 <site name="left_foot" class="h1foot"/>
               </body>
             </body>
@@ -128,7 +131,8 @@
                   diaginertia="0.00220848 0.00218961 0.000214202"/>
                 <joint name="right_ankle" axis="0 1 0" range="-0.87 0.52"/>
                 <geom class="visual" mesh="right_ankle_link"/>
-                <geom class="foot_single_capsule"/>
+                <geom class="foot_capsule_1"/>
+                <geom class="foot_capsule_2"/>
                 <site name="right_foot" class="h1foot"/>
               </body>
             </body>
