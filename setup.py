@@ -16,7 +16,9 @@ setup(name='dial-mpc',
           'brax',
           'art',
           'emoji',
-          'scienceplots'
+          'scienceplots',
+          'rich',
+          'genesis-world'
       ],
       package_data={'dial-mpc': ['models/', 'examples/']},
       entry_points={
