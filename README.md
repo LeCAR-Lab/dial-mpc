@@ -2,6 +2,8 @@
 
 <div align="center">
 
+ICRA 2025, Best Paper Finalist
+
 [[Website]](https://lecar-lab.github.io/dial-mpc/)
 [[PDF]](https://drive.google.com/file/d/1Z39MCvnl-Tdraon4xAj37iQYLsUh5UOV/view?usp=sharing)
 [[Arxiv]](https://arxiv.org/abs/2409.15610)
@@ -21,6 +23,7 @@ That means you can test out the controller in a plug-and-play manner with minimu
 
 ## News
 
+- 24/04/2025: 🎉 DIAL-MPC made into the best paper final list of ICRA 2025
 - 11/03/2024: 🎉 Sim2Real pipeline is ready! Check out the [Sim2Real](#deploy-in-real-unitree-go2) section for more details.
 - 09/25/2024: 🎉 DIAL-MPC is released with open-source codes! Sim2Real pipeline coming soon!
 
