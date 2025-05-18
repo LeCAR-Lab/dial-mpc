@@ -17,7 +17,7 @@ update_method: mppi
 # Base environment
 dt: 0.02
 timestep: 0.02
-leg_control: torque
+leg_control: position
 action_scale: 1.0
 
 # H1

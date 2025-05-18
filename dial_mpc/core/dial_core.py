@@ -60,12 +60,15 @@ class MBDPI:
 
         sigma0 = 1e-2
         sigma1 = 1.0
+        sigma_scale = 1.0
         A = sigma0
         B = jnp.log(sigma1 / sigma0) / args.Ndiffuse
-        self.sigmas = A * jnp.exp(B * jnp.arange(args.Ndiffuse))
         self.sigma_control = (
             args.horizon_diffuse_factor ** jnp.arange(args.Hnode + 1)[::-1]
         )
+
+        self.sigma_control *= sigma_scale
+        print(self.sigma_control)
 
         # node to u
         self.ctrl_dt = 0.02
@@ -141,19 +144,6 @@ class MBDPI:
 
         return rng, Ybar, info
 
-    def reverse(self, state, YN, rng):
-        Yi = YN
-        with tqdm(range(self.args.Ndiffuse - 1, 0, -1), desc="Diffusing") as pbar:
-            for i in pbar:
-                t0 = time.time()
-                rng, Yi, rews = self.reverse_once(
-                    state, rng, Yi, self.sigmas[i] * jnp.ones(self.args.Hnode + 1)
-                )
-                Yi.block_until_ready()
-                freq = 1 / (time.time() - t0)
-                pbar.set_postfix({"rew": f"{rews.mean():.2e}", "freq": f"{freq:.2f}"})
-        return Yi
-
     @functools.partial(jax.jit, static_argnums=(0,))
     def shift(self, Y):
         u = self.node2u_vmap(Y)
@@ -226,7 +216,7 @@ def main():
     YN = jnp.zeros([dial_config.Hnode + 1, mbdpi.nu])
 
     rng_exp, rng = jax.random.split(rng)
-    # Y0 = mbdpi.reverse(state_init, YN, rng_exp)
+
     Y0 = YN
 
     Nstep = dial_config.n_steps

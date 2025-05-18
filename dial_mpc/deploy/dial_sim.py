@@ -154,7 +154,7 @@ class DialSim:
             plt.show(block=False)
 
         viewer = mujoco.viewer.launch_passive(
-            self.mj_model, self.mj_data, show_left_ui=False, show_right_ui=False
+            self.mj_model, self.mj_data, show_left_ui=True, show_right_ui=True
         )
 
         cnt = 0

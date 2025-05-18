@@ -43,11 +43,11 @@ class BaseEnv(PipelineEnv):
         joint_targets = self.joint_range[:, 0] + act_normalized * (
             self.joint_range[:, 1] - self.joint_range[:, 0]
         )  # scale to joint range
-        joint_targets = jnp.clip(
-            joint_targets,
-            self.physical_joint_range[:, 0],
-            self.physical_joint_range[:, 1],
-        )
+        # joint_targets = jnp.clip(
+        #     joint_targets,
+        #     self.physical_joint_range[:, 0],
+        #     self.physical_joint_range[:, 1],
+        # )
         return joint_targets
 
     @partial(jax.jit, static_argnums=(0,))

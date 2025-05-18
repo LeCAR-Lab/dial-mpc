@@ -208,7 +208,7 @@ class MBDPublisher:
                 n_diffuse = self.dial_config.Ndiffuse
             traj_diffuse_factors = (
                 self.dial_config.traj_diffuse_factor ** (jnp.arange(n_diffuse))[:, None]
-            )   
+            )
             for i in range(len(traj_diffuse_factors)):
                 state = self.env.pre_step(state)
                 (self.rng, self.Y, _), info = reverse_scan(
@@ -217,7 +217,7 @@ class MBDPublisher:
                 state = self.env.post_step(state)
             # use position control
             actual_joint_targets = info["qbar"][:, 7:]
-            x_targets = info["xbar"][-1, :, 1:, :3]
+            x_targets = info["xbar"][:, 1:, :3]
             # convert plan to control
             us = self.mbdpi.node2u_vmap(self.Y)
             # unnormalize control

@@ -617,6 +617,12 @@ class UnitreeH1LocoEnv(BaseEnv):
         self._torso_idx = mujoco.mj_name2id(
             self.sys.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, "torso_link"
         )
+        self._left_foot_body_idx = mujoco.mj_name2id(
+            self.sys.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, "left_ankle_link"
+        )
+        self._right_foot_body_idx = mujoco.mj_name2id(
+            self.sys.mj_model, mujoco.mjtObj.mjOBJ_BODY.value, "right_ankle_link"
+        )
 
         self._left_foot_idx = mujoco.mj_name2id(
             self.sys.mj_model, mujoco.mjtObj.mjOBJ_SITE.value, "left_foot"
@@ -639,27 +645,27 @@ class UnitreeH1LocoEnv(BaseEnv):
             # ratio, cadence, amplitude
             "stand": jnp.array([1.0, 1.0, 0.0]),
             "slow_walk": jnp.array([0.6, 0.8, 0.15]),
-            "walk": jnp.array([0.5, 1.5, 0.10]),
+            "walk": jnp.array([0.6, 1.5, 0.2]),
             "jog": jnp.array([0.3, 2.0, 0.2]),
         }
 
         # joint limits and initial pose
-        self._init_q = jnp.array(self.sys.mj_model.keyframe("home").qpos)
-        self._default_pose = self.sys.mj_model.keyframe("home").qpos[7:]
+        self._init_q = jnp.array(self.sys.mj_model.keyframe("loco_home").qpos)
+        self._default_pose = self.sys.mj_model.keyframe("loco_home").qpos[7:]
         # joint sampling range
         self.joint_range = jnp.array(
             [
-                [-0.15, 0.15],
-                [-0.15, 0.15],
-                [-0.6, 0.6],
-                [0.0, 1.5],
-                [-0.6, 0.4],
+                [-0.3, 0.3],
+                [-0.3, 0.3],
+                [-1.5, 0.3],
+                [0.3, 2.1],
+                [-1.5, 0.3],
 
-                [-0.15, 0.15],
-                [-0.15, 0.15],
-                [-0.6, 0.6],
-                [0.0, 1.5],
-                [-0.6, 0.4],
+                [-0.3, 0.3],
+                [-0.3, 0.3],
+                [-1.5, 0.3],
+                [0.3, 2.1],
+                [-1.5, 0.3],
 
                 [-0.5, 0.5],
             ]
@@ -667,7 +673,7 @@ class UnitreeH1LocoEnv(BaseEnv):
         # self.joint_range = self.physical_joint_range
 
     def make_system(self, config: UnitreeH1LocoEnvConfig) -> System:
-        model_path = get_model_path("unitree_h1", "mjx_scene_h1_loco.xml")
+        model_path = get_model_path("unitree_h1", "mjx_scene_h1_loco_position.xml")
         sys = mjcf.load(model_path)
         sys = sys.tree_replace({"opt.timestep": config.timestep})
         return sys
@@ -679,7 +685,7 @@ class UnitreeH1LocoEnv(BaseEnv):
 
         state_info = {
             "rng": rng,
-            "pos_tar": jnp.array([0.0, 0.0, 1.3]),
+            "pos_tar": jnp.array([0.0, 0.0, 0.9]),
             "vel_tar": jnp.zeros(3),
             "ang_vel_tar": jnp.zeros(3),
             "yaw_tar": 0.0,
@@ -783,7 +789,7 @@ class UnitreeH1LocoEnv(BaseEnv):
         d_yaw = yaw - yaw_tar
         reward_yaw = -jnp.square(jnp.atan2(jnp.sin(d_yaw), jnp.cos(d_yaw)))
         # stay to norminal pose reward
-        # reward_pose = -jnp.sum(jnp.square(joint_targets - self._default_pose))
+        reward_pose = -jnp.sum(jnp.square(pipeline_state.qpos[7:] - self._default_pose))
         # velocity reward
         vb = global_to_body_velocity(
             xd.vel[self._torso_idx - 1], x.rot[self._torso_idx - 1]
@@ -803,6 +809,18 @@ class UnitreeH1LocoEnv(BaseEnv):
         vec_left = left_foot_mat @ vec_tar
         vec_right = right_foot_mat @ vec_tar
         reward_foot_level = -jnp.sum((vec_left - vec_tar) ** 2 + (vec_right - vec_tar) ** 2)
+
+        # slip reward
+        left_foot_slip_vel = pipeline_state.xd.vel[self._left_foot_body_idx - 1, :2] * (z_feet[0] < 1e-2)
+        right_foot_slip_vel = pipeline_state.xd.vel[self._right_foot_body_idx - 1, :2] * (z_feet[1] < 1e-2)
+        reward_slip = -jnp.sum(left_foot_slip_vel ** 2 + right_foot_slip_vel ** 2)
+
+        # jax.debug.print("{force}", force=pipeline_state.efc_force)
+        # jax.debug.print("{efc}", efc=pipeline_state.contact.efc_address)
+
+        # contact force reward
+        reward_contact = -jnp.sum(jnp.sum((pipeline_state.efc_force[pipeline_state.contact.efc_address] / 1000.0).reshape(2, -1), axis=1) ** 2)
+
         # energy reward
         reward_energy = -jnp.sum((ctrl / self.joint_torque_range[:, 1] * pipeline_state.qvel[6:6+len(self.joint_range)] / 160.0) ** 2)
         #reward_energy = -jnp.sum((ctrl / self.joint_torque_range[:, 1]) ** 2)
@@ -810,18 +828,20 @@ class UnitreeH1LocoEnv(BaseEnv):
         reward_alive = 1.0 - state.done
         # reward
         reward = (
-            reward_gaits * 10.0
+            reward_gaits * 30.0
             + reward_air_time * 0.0
-            + reward_pos * 0.2
-            + reward_upright * 0.5
-            + reward_yaw * 0.5
-            # + reward_pose * 0.0
+            + reward_pos * 5.0
+            + reward_upright * 5.0
+            + reward_yaw * 5.0
+            + reward_pose * 0.1
             + reward_vel * 1.0
             + reward_ang_vel * 1.0
-            + reward_height * 0.5
-            + reward_foot_level * 0.02
-            + reward_energy * 0.01
+            + reward_height * 0.0
+            + reward_foot_level * 0.1
+            + reward_energy * 0.0
             + reward_alive * 0.0
+            + reward_slip * 0.1
+            + reward_contact * 0.1
         )
 
         # done

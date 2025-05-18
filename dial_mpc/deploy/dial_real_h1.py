@@ -41,6 +41,8 @@ from dial_mpc.utils.io_utils import (
 from dial_mpc.examples import deploy_examples
 from dial_mpc.deploy.localization import load_plugin, get_available_plugins
 
+from tf_transformations import euler_from_quaternion
+
 motor2mjx = {
     8: 5,
     0: 6,
@@ -118,7 +120,7 @@ class DialRealH1:
         mujoco.mj_resetDataKeyframe(self.mj_model, self.mj_data, 0)
         mujoco.mj_forward(self.mj_model, self.mj_data)
         self.viewer = mujoco.viewer.launch_passive(
-            self.mj_model, self.mj_data, show_left_ui=False, show_right_ui=True
+            self.mj_model, self.mj_data, show_left_ui=True, show_right_ui=True
         )
 
         # parameters
@@ -230,6 +232,11 @@ class DialRealH1:
         # copy body pose and velocity from localization plugin
         q[:7] = localization_output[:7]
         dq[0:6] = localization_output[7:]
+
+        # rpy = euler_from_quaternion([q[4], q[5], q[6], q[3]])
+        # imu_rpy = msg.imu_state.rpy
+
+        # print(f"r diff: {(rpy[0] - imu_rpy[0]) * 180 / np.pi}, p diff: {(rpy[1] - imu_rpy[1]) * 180 / np.pi}", flush=True)
 
         # # rotate angular velocity into the world frame
         # rot = R.from_quat([q[4], q[5], q[6], q[3]]).as_matrix()
@@ -410,7 +417,7 @@ def main(args=None):
             data = np.array(real_env.data)
             output_dir = os.path.join(
                 dial_config.output_dir,
-                f"sim_{dial_config.env_name}_{env_config.task_name}_{timestamp}",
+                f"real_{dial_config.env_name}_{env_config.task_name}_{timestamp}",
             )
             os.makedirs(output_dir)
             np.save(os.path.join(output_dir, "states"), data)

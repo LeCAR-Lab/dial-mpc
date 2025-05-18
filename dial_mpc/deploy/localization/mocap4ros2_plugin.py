@@ -45,21 +45,21 @@ class Mocap4ROS2InterfaceNode(Node):
         self.lock = threading.Lock()
 
     def rigid_bodies_callback(self, msg: RigidBodies):
+        assert len(msg.rigidbodies) == 1, "Only one rigid body is supported"
         body = msg.rigidbodies[0]
         q = [body.pose.orientation.x, body.pose.orientation.y, body.pose.orientation.z, body.pose.orientation.w]
+        translation = np.array([body.pose.position.x, body.pose.position.y, body.pose.position.z])
         r1 = R.from_quat(q)
 
         if self.up_axis == "y":
             r2 = R.from_euler("xyz", [-90.0, 0.0, 180.0], degrees=True)
             rotation = r2 * r1
+            translation = r2.apply(translation)
         elif self.up_axis == "z":
             rotation = r1
         q_final = rotation.as_quat()
         rpy = euler_from_quaternion(q_final, 'rxyz')
         # rpy = rotation.as_euler("xyz")
-        
-        translation = np.array([body.pose.position.x, body.pose.position.y, body.pose.position.z])
-        translation = r2.apply(translation)
 
         if len(self.data_buffer) == self.buffer_size:
             self.data_buffer.pop(0)
