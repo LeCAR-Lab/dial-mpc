@@ -23,7 +23,8 @@ That means you can test out the controller in a plug-and-play manner with minimu
 
 ## News
 
-- 24/04/2025: 🎉 DIAL-MPC made into the best paper final list of ICRA 2025
+- 05/19/2025: 🫰 New demo for ball-spinning on finger can be run with `dial-mpc --example allegro_reorient`.
+- 04/24/2025: 🎉 DIAL-MPC made into the best paper final list of ICRA 2025.
 - 11/03/2024: 🎉 Sim2Real pipeline is ready! Check out the [Sim2Real](#deploy-in-real-unitree-go2) section for more details.
 - 09/25/2024: 🎉 DIAL-MPC is released with open-source codes! Sim2Real pipeline coming soon!
 
