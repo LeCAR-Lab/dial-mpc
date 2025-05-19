@@ -60,12 +60,15 @@ class MBDPI:
 
         sigma0 = 1e-2
         sigma1 = 1.0
+        sigma_scale = args.sigma_scale
         A = sigma0
         B = jnp.log(sigma1 / sigma0) / args.Ndiffuse
-        self.sigmas = A * jnp.exp(B * jnp.arange(args.Ndiffuse))
         self.sigma_control = (
             args.horizon_diffuse_factor ** jnp.arange(args.Hnode + 1)[::-1]
         )
+
+        self.sigma_control *= sigma_scale
+        print(self.sigma_control)
 
         # node to u
         self.ctrl_dt = 0.02
